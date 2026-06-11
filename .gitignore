@@ -179,3 +179,10 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+# Generated plotter pipeline outputs
+*_line.png
+line_drawing.png
+*.gcode
+*.gc
+*.nc
+*.tap
