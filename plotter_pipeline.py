@@ -8,17 +8,47 @@ from bitmaptracer import bitmap_to_gcode
 
 
 DEFAULT_LINE_DRAWING_PROMPT = """
-create a minimalistic line drawing form this photo, constant line width, no speckles. simple and minimalistic but person should still be recognizable through facial details.
-the drawing should not look too perfect, it should have human artistic quality, use the reference image as an example.
+Create a loose, minimalistic, human hand-drawn line-art portrait from the input photo.
 
-Requirements:
-- portrait should remain recognizable from the source photo
-- black lines on a plain white or very light background
-- no color, no shading, no grayscale fills, no hatching except sparse facial hair texture
-- continuous confident contour lines suitable for a pen plotter
-- preserve important facial features, hair/beard silhouette, and clothing outline
-- avoid photorealism, gradients, shadows, text, borders, and paper texture
-- leave enough white space between lines for skeleton tracing
+Use the supplied line-art reference image as the main style reference:
+an imperfect, expressive, sparse continuous-line portrait drawn by a human artist. The drawing should feel handmade, slightly irregular, and artistic, not mechanically perfect.
+
+Preserve the recognizable identity and expression of the person in the photo:
+face shape, eyes, eyebrows, nose, mouth, smile, hairline, facial hair if present, glasses/headphones/hat if present, collar, clothing silhouette, and overall posture.
+
+Output style:
+
+bitmap image only
+black ink lines on a plain warm off-white / light beige background
+thin, mostly constant line width
+sparse open contour lines
+minimal facial detail, but enough detail for recognition
+slightly wobbly human line quality
+airy composition with lots of empty space
+portrait centered in the frame
+suitable for thresholding, skeletonization, centerline tracing, and physical pen plotting
+
+Avoid:
+
+photorealism
+clean vector-logo style
+perfect symmetry
+cartoon caricature
+filled black shapes
+shadows
+grayscale shading
+hatching
+stippling
+speckles
+background texture
+dense hair, beard, or fabric texture
+many tiny disconnected details
+overly detailed teeth
+thick outlines
+duplicated sketch strokes
+decorative background elements
+
+The result should look like a quick expressive pen sketch made by a human artist, while remaining clean enough to trace into single centerline paths.
 """
 
 
