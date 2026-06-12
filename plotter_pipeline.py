@@ -8,15 +8,15 @@ from bitmaptracer import bitmap_to_gcode
 
 
 DEFAULT_LINE_DRAWING_PROMPT = """
-Create a clean black ink line drawing of the person in the source photo,
-using the reference image only as a drawing style guide.
+create a minimalistic line drawing form this photo, constant line width, no speckles. simple and minimalistic but person should still be recognizable through facial details.
+the drawing should not look too perfect, it should have human artistic quality, use the reference image as an example.
 
 Requirements:
 - portrait should remain recognizable from the source photo
 - black lines on a plain white or very light background
 - no color, no shading, no grayscale fills, no hatching except sparse facial hair texture
 - continuous confident contour lines suitable for a pen plotter
-- preserve important facial features, hat, hair/beard silhouette, and clothing outline
+- preserve important facial features, hair/beard silhouette, and clothing outline
 - avoid photorealism, gradients, shadows, text, borders, and paper texture
 - leave enough white space between lines for skeleton tracing
 """
