@@ -88,6 +88,18 @@ def path_length(points):
     return total
 
 
+def remove_small_components(mask, min_size):
+    if min_size <= 1:
+        return mask
+
+    try:
+        # scikit-image 0.26 renamed this threshold to max_size and removes
+        # components with size <= max_size. The old min_size removed size < min_size.
+        return remove_small_objects(mask, max_size=min_size - 1)
+    except TypeError:
+        return remove_small_objects(mask, min_size=min_size)
+
+
 def best_continuation(previous, current, candidates):
     if len(candidates) == 1:
         return candidates[0]
@@ -250,7 +262,7 @@ def trace_bitmap(
         line_pixels = binary == 0
 
     # Remove small noise.
-    line_pixels = remove_small_objects(line_pixels.astype(bool), min_size=min_size)
+    line_pixels = remove_small_components(line_pixels.astype(bool), min_size)
 
     # Skeletonize to one-pixel centerlines.
     skeleton = skeletonize(line_pixels)

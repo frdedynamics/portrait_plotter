@@ -188,6 +188,10 @@ cython_debug/
 # Generated plotter pipeline outputs
 *_line.png
 line_drawing.png
+preprocessed_photo.png
+*_preprocessed.png
+preprocess_debug.png
+preprocess_meta.json
 *.gcode
 *.gc
 *.nc

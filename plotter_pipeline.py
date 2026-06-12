@@ -5,6 +5,7 @@ from contextlib import ExitStack
 from pathlib import Path
 
 from bitmaptracer import bitmap_to_gcode
+from preprocess_portrait import parse_size, preprocess_portrait
 
 
 DEFAULT_LINE_DRAWING_PROMPT = """
@@ -107,6 +108,26 @@ def run_pipeline(args):
             raise ValueError(f"Line drawing does not exist: {line_drawing_path}")
         print(f"Using existing line drawing: {line_drawing_path}")
     else:
+        photo_path = Path(args.photo)
+        if not args.skip_preprocess:
+            photo_path = Path(args.preprocessed_photo)
+            print(f"Preprocessing portrait: {photo_path}")
+            meta = preprocess_portrait(
+                input_path=args.photo,
+                output_path=photo_path,
+                output_size=parse_size(args.preprocess_size or args.image_size),
+                detector=args.detector,
+                face_height_factor=args.face_height_factor,
+                min_width_factor=args.min_width_factor,
+                center_y_shift=args.center_y_shift,
+                autocontrast_clip=args.autocontrast_clip,
+                debug_path=args.preprocess_debug,
+                meta_path=args.preprocess_meta,
+            )
+
+            for warning in meta.warnings:
+                print(f"Preprocess warning: {warning}")
+
         prompt = DEFAULT_LINE_DRAWING_PROMPT
         if args.prompt_file:
             prompt = Path(args.prompt_file).read_text(encoding="utf-8")
@@ -115,7 +136,7 @@ def run_pipeline(args):
 
         print(f"Generating line drawing: {line_drawing_path}")
         generate_line_drawing(
-            photo_path=args.photo,
+            photo_path=photo_path,
             style_reference_path=args.style_reference,
             output_path=line_drawing_path,
             prompt=prompt,
@@ -151,6 +172,16 @@ def build_parser():
     parser.add_argument("photo", help="Input photo to convert")
     parser.add_argument("gcode", help="Output G-code file")
     parser.add_argument("--style-reference", help="Optional style/context reference image")
+    parser.add_argument("--preprocessed-photo", default="preprocessed_photo.png", help="Intermediate preprocessed portrait image")
+    parser.add_argument("--skip-preprocess", action="store_true", help="Send the original photo directly to the image model")
+    parser.add_argument("--preprocess-size", default=None, help="Preprocessed portrait size; defaults to --image-size")
+    parser.add_argument("--detector", default="auto", choices=["auto", "mediapipe", "haar"], help="Face detector for preprocessing")
+    parser.add_argument("--face-height-factor", type=float, default=2.2, help="Vertical context around detected face")
+    parser.add_argument("--min-width-factor", type=float, default=1.6, help="Minimum crop width relative to face width")
+    parser.add_argument("--center-y-shift", type=float, default=0.35, help="Shift crop downward relative to face height")
+    parser.add_argument("--autocontrast-clip", type=float, default=0.5, help="Mild luminance autocontrast clipping percentage; use 0 to disable")
+    parser.add_argument("--preprocess-debug", default=None, help="Optional debug image showing face/crop detection")
+    parser.add_argument("--preprocess-meta", default=None, help="Optional JSON metadata path for preprocessing")
     parser.add_argument("--line-drawing", default="line_drawing.png", help="Intermediate line drawing PNG")
     parser.add_argument("--skip-generation", action="store_true", help="Trace an existing --line-drawing without calling the API")
     parser.add_argument("--model", default="gpt-image-2", help="OpenAI image model")

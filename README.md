@@ -3,9 +3,10 @@
 Pipeline for turning a portrait photo into plotter-ready G-code:
 
 1. take a photo,
-2. generate a black-line portrait drawing with the OpenAI API,
-3. trace that bitmap line drawing with `bitmaptracer.py`,
-4. write G-code to a file for the plotter controller.
+2. preprocess it into a consistent head-and-shoulders portrait crop,
+3. generate a black-line portrait drawing with the OpenAI API,
+4. trace that bitmap line drawing with `bitmaptracer.py`,
+5. write G-code to a file for the plotter controller.
 
 Printer connection, Raspberry Pi UI, and job sending are intentionally outside this repository.
 
@@ -32,6 +33,7 @@ export OPENAI_API_KEY="sk-..."
 ```powershell
 python plotter_pipeline.py photo.jpg output.gcode `
   --style-reference style_reference.png `
+  --preprocessed-photo photo_preprocessed.png `
   --line-drawing output_line.png `
   --width-mm 100 `
   --height-mm 125 `
@@ -39,7 +41,41 @@ python plotter_pipeline.py photo.jpg output.gcode `
   --speed 1500
 ```
 
-The generated line drawing is saved separately so it can be inspected before plotting.
+The preprocessed photo and generated line drawing are saved separately so they can be inspected before plotting.
+
+Preprocessing is enabled by default. It corrects image orientation, detects the main face, crops head and shoulders, resizes to the model input size, and applies mild luminance normalization. To send the original photo directly to the image model:
+
+```powershell
+python plotter_pipeline.py photo.jpg output.gcode `
+  --skip-preprocess `
+  --style-reference style_reference.png `
+  --width-mm 100 `
+  --height-mm 125
+```
+
+For debugging the portrait crop:
+
+```powershell
+python plotter_pipeline.py photo.jpg output.gcode `
+  --style-reference style_reference.png `
+  --preprocess-debug preprocess_debug.png `
+  --preprocess-meta preprocess_meta.json `
+  --width-mm 100 `
+  --height-mm 125
+```
+
+## Preprocess Only
+
+You can run the portrait crop/normalization step by itself:
+
+```powershell
+python preprocess_portrait.py photo.jpg preprocessed_photo.png `
+  --size 1024x1536 `
+  --debug preprocess_debug.png `
+  --meta preprocess_meta.json
+```
+
+The debug image shows detected face boxes and the selected crop. The metadata JSON records which detector was used and any warnings.
 
 ## Trace An Existing Line Drawing
 
