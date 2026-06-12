@@ -3,7 +3,7 @@
 Pipeline for turning a portrait photo into plotter-ready G-code:
 
 1. take a photo,
-2. preprocess it into a consistent head-and-shoulders portrait crop,
+2. preprocess it by cropping around all relevant faces and suppressing the photo background,
 3. generate a black-line portrait drawing with the OpenAI API,
 4. trace that bitmap line drawing with `bitmaptracer.py`,
 5. write G-code to a file for the plotter controller.
@@ -43,7 +43,19 @@ python plotter_pipeline.py photo.jpg output.gcode `
 
 The preprocessed photo and generated line drawing are saved separately so they can be inspected before plotting.
 
-Preprocessing is enabled by default. It corrects image orientation, detects the main face, crops head and shoulders, resizes to the model input size, and applies mild luminance normalization. To send the original photo directly to the image model:
+Preprocessing is enabled by default. It corrects image orientation, detects relevant faces, crops around the face group, replaces/suppresses the background with a light color, resizes to the model input size, and applies mild luminance normalization. This is the preferred mode when the input may contain multiple people.
+
+To keep the group crop but skip background removal:
+
+```powershell
+python plotter_pipeline.py photo.jpg output.gcode `
+  --preprocess-mode crop `
+  --style-reference style_reference.png `
+  --width-mm 100 `
+  --height-mm 125
+```
+
+To send the original photo directly to the image model:
 
 ```powershell
 python plotter_pipeline.py photo.jpg output.gcode `
@@ -66,7 +78,7 @@ python plotter_pipeline.py photo.jpg output.gcode `
 
 ## Preprocess Only
 
-You can run the portrait crop/normalization step by itself:
+You can run preprocessing by itself:
 
 ```powershell
 python preprocess_portrait.py photo.jpg preprocessed_photo.png `
@@ -75,7 +87,17 @@ python preprocess_portrait.py photo.jpg preprocessed_photo.png `
   --meta preprocess_meta.json
 ```
 
-The debug image shows detected face boxes and the selected crop. The metadata JSON records which detector was used and any warnings.
+The default mode crops around all relevant faces and suppresses the background. The debug image shows detected face boxes and the selected group crop; the metadata JSON records which detector was used and any warnings.
+
+To crop around the face group without background removal:
+
+```powershell
+python preprocess_portrait.py photo.jpg preprocessed_photo.png `
+  --mode crop `
+  --size 1024x1536 `
+  --debug preprocess_debug.png `
+  --meta preprocess_meta.json
+```
 
 ## Trace An Existing Line Drawing
 

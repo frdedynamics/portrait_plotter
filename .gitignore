@@ -189,8 +189,11 @@ cython_debug/
 *_line.png
 line_drawing.png
 preprocessed_photo.png
+preprocessed_*.png
 *_preprocessed.png
+preprocess_*.png
 preprocess_debug.png
+preprocess_*.json
 preprocess_meta.json
 *.gcode
 *.gc

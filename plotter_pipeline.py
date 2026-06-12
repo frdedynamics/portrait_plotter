@@ -5,7 +5,7 @@ from contextlib import ExitStack
 from pathlib import Path
 
 from bitmaptracer import bitmap_to_gcode
-from preprocess_portrait import parse_size, preprocess_portrait
+from preprocess_portrait import parse_rgb, parse_size, preprocess_portrait
 
 
 DEFAULT_LINE_DRAWING_PROMPT = """
@@ -116,11 +116,13 @@ def run_pipeline(args):
                 input_path=args.photo,
                 output_path=photo_path,
                 output_size=parse_size(args.preprocess_size or args.image_size),
+                mode=args.preprocess_mode,
                 detector=args.detector,
                 face_height_factor=args.face_height_factor,
                 min_width_factor=args.min_width_factor,
                 center_y_shift=args.center_y_shift,
                 autocontrast_clip=args.autocontrast_clip,
+                background_color=args.background_color,
                 debug_path=args.preprocess_debug,
                 meta_path=args.preprocess_meta,
             )
@@ -174,8 +176,10 @@ def build_parser():
     parser.add_argument("--style-reference", help="Optional style/context reference image")
     parser.add_argument("--preprocessed-photo", default="preprocessed_photo.png", help="Intermediate preprocessed portrait image")
     parser.add_argument("--skip-preprocess", action="store_true", help="Send the original photo directly to the image model")
+    parser.add_argument("--preprocess-mode", default="background", choices=["background", "crop"], help="background crops around all relevant faces and suppresses background; crop skips background removal")
     parser.add_argument("--preprocess-size", default=None, help="Preprocessed portrait size; defaults to --image-size")
     parser.add_argument("--detector", default="auto", choices=["auto", "mediapipe", "haar"], help="Face detector for preprocessing")
+    parser.add_argument("--background-color", type=parse_rgb, default=(248, 244, 234), help="RGB replacement color for background mode, e.g. 248,244,234")
     parser.add_argument("--face-height-factor", type=float, default=2.2, help="Vertical context around detected face")
     parser.add_argument("--min-width-factor", type=float, default=1.6, help="Minimum crop width relative to face width")
     parser.add_argument("--center-y-shift", type=float, default=0.35, help="Shift crop downward relative to face height")
