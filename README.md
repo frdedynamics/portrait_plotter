@@ -30,6 +30,8 @@ export OPENAI_API_KEY="sk-..."
 
 ## Run The Full Pipeline
 
+For the complete generated CLI parameter reference, see [CLI.md](CLI.md).
+
 ```powershell
 python plotter_pipeline.py photo.jpg output.gcode `
   --style-reference style_reference.png `
