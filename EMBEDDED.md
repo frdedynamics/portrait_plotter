@@ -85,7 +85,16 @@ source .venv/bin/activate
 python -m pip install -r requirements-rpi.txt
 ```
 
-`--system-site-packages` is recommended because `python3-picamera2` is installed by apt into the system Python environment.
+Use `requirements-rpi.txt` on the Raspberry Pi, not just `requirements.txt`.
+
+`requirements-rpi.txt` includes the normal project dependencies from `requirements.txt` and adds Pi-specific GPIO support:
+
+```text
+-r requirements.txt
+gpiozero
+```
+
+`--system-site-packages` is recommended because `python3-picamera2` is installed by apt into the system Python environment, not by pip.
 
 Test the project PiCamera capture:
 

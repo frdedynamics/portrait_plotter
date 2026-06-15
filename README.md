@@ -34,6 +34,8 @@ For the complete generated CLI parameter reference, see [CLI.md](CLI.md).
 
 For Raspberry Pi camera, GPIO button, and Ender 3 embedded setup, see [EMBEDDED.md](EMBEDDED.md).
 
+On Raspberry Pi, install with `requirements-rpi.txt` instead of only `requirements.txt` so GPIO button support is included.
+
 ```powershell
 python plotter_pipeline.py photo.jpg output.gcode `
   --style-reference style_reference.png `
