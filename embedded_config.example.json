@@ -1,0 +1,22 @@
+{
+  "button_pin": 17,
+  "button_pull_up": true,
+  "button_bounce_time": 0.2,
+  "status_led_pin": 27,
+  "error_led_pin": 22,
+  "pipeline_args": [
+    "output.gcode",
+    "--capture-picamera",
+    "--captured-photo", "captured_photo.jpg",
+    "--picamera-width", "2560",
+    "--picamera-height", "1440",
+    "--picamera-warmup-seconds", "2",
+    "--style-reference", "style_reference.png",
+    "--width-mm", "100",
+    "--height-mm", "125",
+    "--lift-height", "5",
+    "--speed", "1500",
+    "--send-to-printer",
+    "--serial-port", "/dev/serial/by-id/YOUR_PRINTER_SERIAL_ID"
+  ]
+}

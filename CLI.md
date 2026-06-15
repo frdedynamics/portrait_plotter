@@ -13,7 +13,7 @@ python generate_cli_docs.py
 Full photo/webcam to G-code pipeline
 
 ```text
-usage: plotter_pipeline.py [-h] [--capture-webcam]
+usage: plotter_pipeline.py [-h] [--capture-webcam] [--capture-picamera]
                            [--captured-photo CAPTURED_PHOTO]
                            [--camera-index CAMERA_INDEX]
                            [--camera-backend {any,dshow,msmf,v4l2}]
@@ -21,6 +21,10 @@ usage: plotter_pipeline.py [-h] [--capture-webcam]
                            [--camera-height CAMERA_HEIGHT]
                            [--camera-warmup-frames CAMERA_WARMUP_FRAMES]
                            [--camera-delay CAMERA_DELAY]
+                           [--picamera-width PICAMERA_WIDTH]
+                           [--picamera-height PICAMERA_HEIGHT]
+                           [--picamera-warmup-seconds PICAMERA_WARMUP_SECONDS]
+                           [--picamera-num PICAMERA_NUM]
                            [--style-reference STYLE_REFERENCE]
                            [--preprocessed-photo PREPROCESSED_PHOTO]
                            [--skip-preprocess]
@@ -64,6 +68,7 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --capture-webcam      Capture the input photo from a webcam
+  --capture-picamera    Capture the input photo from a Raspberry Pi camera
   --captured-photo CAPTURED_PHOTO
                         Intermediate webcam capture path
   --camera-index CAMERA_INDEX
@@ -78,6 +83,14 @@ options:
                         Frames to discard before webcam capture
   --camera-delay CAMERA_DELAY
                         Seconds to wait before webcam capture
+  --picamera-width PICAMERA_WIDTH
+                        Requested Pi camera still width
+  --picamera-height PICAMERA_HEIGHT
+                        Requested Pi camera still height
+  --picamera-warmup-seconds PICAMERA_WARMUP_SECONDS
+                        Seconds to let Pi camera exposure settle
+  --picamera-num PICAMERA_NUM
+                        Picamera2 camera number
   --style-reference STYLE_REFERENCE
                         Optional style/context reference image
   --preprocessed-photo PREPROCESSED_PHOTO
@@ -177,6 +190,31 @@ options:
   --warmup-frames WARMUP_FRAMES
                         Frames to discard before capture
   --delay DELAY         Seconds to wait before capture
+```
+
+## `picamera_capture.py`
+
+Capture one image from a Raspberry Pi camera
+
+```text
+usage: picamera_capture.py [-h] [--width WIDTH] [--height HEIGHT]
+                           [--warmup-seconds WARMUP_SECONDS]
+                           [--camera-num CAMERA_NUM]
+                           output
+
+Capture one still image from a Raspberry Pi camera.
+
+positional arguments:
+  output                Output image path
+
+options:
+  -h, --help            show this help message and exit
+  --width WIDTH         Capture width
+  --height HEIGHT       Capture height
+  --warmup-seconds WARMUP_SECONDS
+                        Seconds to let exposure settle
+  --camera-num CAMERA_NUM
+                        Picamera2 camera number
 ```
 
 ## `preprocess_portrait.py`
@@ -301,4 +339,22 @@ options:
   --response-timeout RESPONSE_TIMEOUT
                         Seconds to wait for each printer response
   --dry-run             Print commands without opening the serial port
+```
+
+## `embedded_button_runner.py`
+
+Run the pipeline from a Raspberry Pi GPIO button
+
+```text
+usage: embedded_button_runner.py [-h] [--config CONFIG]
+                                 [--write-example-config] [--once]
+
+Run the portrait plotter pipeline from a Raspberry Pi GPIO button.
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG       JSON config path
+  --write-example-config
+                        Write an example config and exit
+  --once                Run the configured pipeline once without GPIO
 ```

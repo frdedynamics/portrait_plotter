@@ -6,9 +6,11 @@ from pathlib import Path
 COMMANDS = [
     ("plotter_pipeline.py", "Full photo/webcam to G-code pipeline"),
     ("webcam_capture.py", "Capture one image from a webcam"),
+    ("picamera_capture.py", "Capture one image from a Raspberry Pi camera"),
     ("preprocess_portrait.py", "Preprocess a portrait photo"),
     ("bitmaptracer.py", "Trace a bitmap line drawing to SVG or G-code"),
     ("serial_gcode_sender.py", "Stream G-code to a serial printer"),
+    ("embedded_button_runner.py", "Run the pipeline from a Raspberry Pi GPIO button"),
 ]
 
 

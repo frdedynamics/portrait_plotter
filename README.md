@@ -32,6 +32,8 @@ export OPENAI_API_KEY="sk-..."
 
 For the complete generated CLI parameter reference, see [CLI.md](CLI.md).
 
+For Raspberry Pi camera, GPIO button, and Ender 3 embedded setup, see [EMBEDDED.md](EMBEDDED.md).
+
 ```powershell
 python plotter_pipeline.py photo.jpg output.gcode `
   --style-reference style_reference.png `

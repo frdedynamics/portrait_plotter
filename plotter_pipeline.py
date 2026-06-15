@@ -5,6 +5,7 @@ from contextlib import ExitStack
 from pathlib import Path
 
 from bitmaptracer import bitmap_to_gcode
+from picamera_capture import capture_picamera_image
 from preprocess_portrait import parse_rgb, parse_size, preprocess_portrait
 from serial_gcode_sender import stream_gcode
 from webcam_capture import capture_webcam_image
@@ -117,8 +118,18 @@ def run_pipeline(args):
             delay=args.camera_delay,
             backend=args.camera_backend,
         )
+    elif args.capture_picamera:
+        photo_path = Path(args.captured_photo)
+        print(f"Capturing Pi camera image: {photo_path}")
+        capture_picamera_image(
+            output_path=photo_path,
+            width=args.picamera_width,
+            height=args.picamera_height,
+            warmup_seconds=args.picamera_warmup_seconds,
+            camera_num=args.picamera_num,
+        )
     elif photo_path is None and not args.skip_generation:
-        raise ValueError("Provide a photo path or use --capture-webcam.")
+        raise ValueError("Provide a photo path or use --capture-webcam/--capture-picamera.")
 
     line_drawing_path = Path(args.line_drawing)
 
@@ -208,6 +219,7 @@ def build_parser():
     parser.add_argument("photo", nargs="?", help="Input photo to convert, or output G-code if using --capture-webcam")
     parser.add_argument("gcode", nargs="?", help="Output G-code file")
     parser.add_argument("--capture-webcam", action="store_true", help="Capture the input photo from a webcam")
+    parser.add_argument("--capture-picamera", action="store_true", help="Capture the input photo from a Raspberry Pi camera")
     parser.add_argument("--captured-photo", default="captured_photo.jpg", help="Intermediate webcam capture path")
     parser.add_argument("--camera-index", type=int, default=0, help="OpenCV webcam index")
     parser.add_argument("--camera-backend", choices=["any", "dshow", "msmf", "v4l2"], default=None, help="Optional OpenCV camera backend")
@@ -215,6 +227,10 @@ def build_parser():
     parser.add_argument("--camera-height", type=int, default=None, help="Requested webcam frame height")
     parser.add_argument("--camera-warmup-frames", type=int, default=20, help="Frames to discard before webcam capture")
     parser.add_argument("--camera-delay", type=float, default=0.0, help="Seconds to wait before webcam capture")
+    parser.add_argument("--picamera-width", type=int, default=2560, help="Requested Pi camera still width")
+    parser.add_argument("--picamera-height", type=int, default=1440, help="Requested Pi camera still height")
+    parser.add_argument("--picamera-warmup-seconds", type=float, default=2.0, help="Seconds to let Pi camera exposure settle")
+    parser.add_argument("--picamera-num", type=int, default=0, help="Picamera2 camera number")
     parser.add_argument("--style-reference", help="Optional style/context reference image")
     parser.add_argument("--preprocessed-photo", default="preprocessed_photo.png", help="Intermediate preprocessed portrait image")
     parser.add_argument("--skip-preprocess", action="store_true", help="Send the original photo directly to the image model")
@@ -274,14 +290,17 @@ def main():
 
     try:
         if args.gcode is None:
-            if args.capture_webcam or args.skip_generation:
+            if args.capture_webcam or args.capture_picamera or args.skip_generation:
                 args.gcode = args.photo
                 args.photo = None
             else:
-                parser.error("photo and gcode are required unless using --capture-webcam or --skip-generation.")
+                parser.error("photo and gcode are required unless using --capture-webcam, --capture-picamera, or --skip-generation.")
 
         if args.gcode is None:
             parser.error("gcode output path is required.")
+
+        if args.capture_webcam and args.capture_picamera:
+            parser.error("Use only one of --capture-webcam or --capture-picamera.")
 
         run_pipeline(args)
     except (RuntimeError, ValueError) as exc:
