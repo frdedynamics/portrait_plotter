@@ -261,6 +261,57 @@ Logs:
 journalctl -u portrait-plotter.service -f
 ```
 
+## Disable Or Remove The Service
+
+This is useful if the Raspberry Pi is also used for CODESYS or other software that may claim the same GPIO pins.
+
+Stop the plotter listener temporarily:
+
+```bash
+sudo systemctl stop portrait-plotter.service
+```
+
+Disable automatic start at boot:
+
+```bash
+sudo systemctl disable portrait-plotter.service
+```
+
+For CODESYS work, usually do both:
+
+```bash
+sudo systemctl stop portrait-plotter.service
+sudo systemctl disable portrait-plotter.service
+```
+
+Re-enable later:
+
+```bash
+sudo systemctl enable portrait-plotter.service
+sudo systemctl start portrait-plotter.service
+```
+
+Check status:
+
+```bash
+sudo systemctl status portrait-plotter.service
+```
+
+Remove the service completely:
+
+```bash
+sudo systemctl stop portrait-plotter.service
+sudo systemctl disable portrait-plotter.service
+sudo rm /etc/systemd/system/portrait-plotter.service
+sudo systemctl daemon-reload
+```
+
+If you also want to remove the local API key environment file:
+
+```bash
+sudo rm -r /etc/portrait-plotter
+```
+
 ## Safety Checklist
 
 - Test with `--serial-dry-run` first.
