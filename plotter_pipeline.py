@@ -6,6 +6,8 @@ from pathlib import Path
 
 from bitmaptracer import bitmap_to_gcode
 from preprocess_portrait import parse_rgb, parse_size, preprocess_portrait
+from serial_gcode_sender import stream_gcode
+from webcam_capture import capture_webcam_image
 
 
 DEFAULT_LINE_DRAWING_PROMPT = """
@@ -101,6 +103,23 @@ def generate_line_drawing(
 
 
 def run_pipeline(args):
+    photo_path = Path(args.photo) if args.photo else None
+
+    if args.capture_webcam:
+        photo_path = Path(args.captured_photo)
+        print(f"Capturing webcam image: {photo_path}")
+        capture_webcam_image(
+            output_path=photo_path,
+            camera_index=args.camera_index,
+            width=args.camera_width,
+            height=args.camera_height,
+            warmup_frames=args.camera_warmup_frames,
+            delay=args.camera_delay,
+            backend=args.camera_backend,
+        )
+    elif photo_path is None and not args.skip_generation:
+        raise ValueError("Provide a photo path or use --capture-webcam.")
+
     line_drawing_path = Path(args.line_drawing)
 
     if args.skip_generation:
@@ -108,13 +127,12 @@ def run_pipeline(args):
             raise ValueError(f"Line drawing does not exist: {line_drawing_path}")
         print(f"Using existing line drawing: {line_drawing_path}")
     else:
-        photo_path = Path(args.photo)
         if not args.skip_preprocess:
-            photo_path = Path(args.preprocessed_photo)
-            print(f"Preprocessing portrait: {photo_path}")
+            preprocessed_path = Path(args.preprocessed_photo)
+            print(f"Preprocessing portrait: {preprocessed_path}")
             meta = preprocess_portrait(
-                input_path=args.photo,
-                output_path=photo_path,
+                input_path=photo_path,
+                output_path=preprocessed_path,
                 output_size=parse_size(args.preprocess_size or args.image_size),
                 mode=args.preprocess_mode,
                 detector=args.detector,
@@ -129,6 +147,8 @@ def run_pipeline(args):
 
             for warning in meta.warnings:
                 print(f"Preprocess warning: {warning}")
+
+            photo_path = preprocessed_path
 
         prompt = DEFAULT_LINE_DRAWING_PROMPT
         if args.prompt_file:
@@ -166,13 +186,35 @@ def run_pipeline(args):
         optimize_order=not args.no_optimize_order,
     )
 
+    if args.send_to_printer:
+        if not args.serial_port:
+            raise ValueError("--send-to-printer requires --serial-port.")
+
+        stream_gcode(
+            gcode_path=args.gcode,
+            port=args.serial_port,
+            baud=args.serial_baud,
+            connect_delay=args.serial_connect_delay,
+            response_timeout=args.serial_response_timeout,
+            dry_run=args.serial_dry_run,
+        )
+
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        description="Generate a plotter-ready line drawing from a photo and trace it to G-code."
+        description="Generate a plotter-ready line drawing from a photo and trace it to G-code.",
+        allow_abbrev=False,
     )
-    parser.add_argument("photo", help="Input photo to convert")
-    parser.add_argument("gcode", help="Output G-code file")
+    parser.add_argument("photo", nargs="?", help="Input photo to convert, or output G-code if using --capture-webcam")
+    parser.add_argument("gcode", nargs="?", help="Output G-code file")
+    parser.add_argument("--capture-webcam", action="store_true", help="Capture the input photo from a webcam")
+    parser.add_argument("--captured-photo", default="captured_photo.jpg", help="Intermediate webcam capture path")
+    parser.add_argument("--camera-index", type=int, default=0, help="OpenCV webcam index")
+    parser.add_argument("--camera-backend", choices=["any", "dshow", "msmf", "v4l2"], default=None, help="Optional OpenCV camera backend")
+    parser.add_argument("--camera-width", type=int, default=None, help="Requested webcam frame width")
+    parser.add_argument("--camera-height", type=int, default=None, help="Requested webcam frame height")
+    parser.add_argument("--camera-warmup-frames", type=int, default=20, help="Frames to discard before webcam capture")
+    parser.add_argument("--camera-delay", type=float, default=0.0, help="Seconds to wait before webcam capture")
     parser.add_argument("--style-reference", help="Optional style/context reference image")
     parser.add_argument("--preprocessed-photo", default="preprocessed_photo.png", help="Intermediate preprocessed portrait image")
     parser.add_argument("--skip-preprocess", action="store_true", help="Send the original photo directly to the image model")
@@ -208,14 +250,39 @@ def build_parser():
     parser.add_argument("--prune-spurs", type=int, default=16)
     parser.add_argument("--min-path-length", type=float, default=12.0)
     parser.add_argument("--no-optimize-order", action="store_true")
+
+    parser.add_argument("--send-to-printer", action="store_true", help="Stream generated G-code to a serial printer")
+    parser.add_argument("--serial-port", default=None, help="Serial port, e.g. COM3 or /dev/ttyUSB0")
+    parser.add_argument("--serial-baud", type=int, default=115200, help="Serial baud rate")
+    parser.add_argument("--serial-connect-delay", type=float, default=2.0, help="Seconds to wait after opening serial")
+    parser.add_argument("--serial-response-timeout", type=float, default=30.0, help="Seconds to wait for printer responses")
+    parser.add_argument("--serial-dry-run", action="store_true", help="Print serial commands without opening the port")
     return parser
 
 
 def main():
     parser = build_parser()
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
+    wrong_size_flags = {"--width", "--height"}.intersection(unknown)
+    if wrong_size_flags:
+        parser.error(
+            "Use --camera-width/--camera-height for webcam resolution, "
+            "and --width-mm/--height-mm for plotted drawing size."
+        )
+    if unknown:
+        parser.error(f"unrecognized arguments: {' '.join(unknown)}")
 
     try:
+        if args.gcode is None:
+            if args.capture_webcam or args.skip_generation:
+                args.gcode = args.photo
+                args.photo = None
+            else:
+                parser.error("photo and gcode are required unless using --capture-webcam or --skip-generation.")
+
+        if args.gcode is None:
+            parser.error("gcode output path is required.")
+
         run_pipeline(args)
     except (RuntimeError, ValueError) as exc:
         parser.error(str(exc))

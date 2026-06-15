@@ -43,6 +43,58 @@ python plotter_pipeline.py photo.jpg output.gcode `
 
 The preprocessed photo and generated line drawing are saved separately so they can be inspected before plotting.
 
+## Capture From Webcam
+
+Capture a still image only:
+
+```powershell
+python webcam_capture.py captured_photo.jpg --camera-index 0
+```
+
+Request a specific capture resolution:
+
+```powershell
+python webcam_capture.py captured_photo.jpg `
+  --camera-index 2 `
+  --backend dshow `
+  --width 2560 `
+  --height 1440
+```
+
+If index `0` does not open, probe available indices:
+
+```powershell
+python webcam_capture.py --list-cameras --max-index 10
+```
+
+On Windows, trying a specific backend can help:
+
+```powershell
+python webcam_capture.py --list-cameras --backend dshow
+python webcam_capture.py captured_photo.jpg --camera-index 0 --backend dshow
+```
+
+On Raspberry Pi/Linux, the backend is usually `v4l2`:
+
+```bash
+python webcam_capture.py --list-cameras --backend v4l2
+python webcam_capture.py captured_photo.jpg --camera-index 0 --backend v4l2
+```
+
+Run the full pipeline using the webcam as input:
+
+```powershell
+python plotter_pipeline.py output.gcode `
+  --capture-webcam `
+  --captured-photo captured_photo.jpg `
+  --camera-index 2 `
+  --camera-width 2560 `
+  --camera-height 1440 `
+  --style-reference style_reference.png `
+  --width-mm 100 `
+  --height-mm 125
+```
+
 Preprocessing is enabled by default. It corrects image orientation, detects relevant faces, crops around the face group, replaces/suppresses the background with a light color, resizes to the model input size, and applies mild luminance normalization. This is the preferred mode when the input may contain multiple people.
 
 To keep the group crop but skip background removal:
@@ -104,7 +156,7 @@ python preprocess_portrait.py photo.jpg preprocessed_photo.png `
 Use this when you already have a generated bitmap line drawing and only want G-code:
 
 ```powershell
-python plotter_pipeline.py photo.jpg output.gcode `
+python plotter_pipeline.py output.gcode `
   --skip-generation `
   --line-drawing output_line.png `
   --width-mm 100 `
@@ -120,6 +172,52 @@ python plotter_pipeline.py photo.jpg output.gcode `
 - `--threshold`: manually controls black/white thresholding; by default Otsu thresholding is used.
 
 The defaults in `plotter_pipeline.py` are more aggressive than raw `bitmaptracer.py` because GPT-generated line drawings often contain small texture marks that become tiny plotter moves.
+
+## Send G-code To Ender 3
+
+First do a dry run. This reads the G-code and prints the commands that would be sent, without opening the serial port:
+
+```powershell
+python serial_gcode_sender.py output.gcode --port COM3 --dry-run
+```
+
+Stream to the printer:
+
+```powershell
+python serial_gcode_sender.py output.gcode --port COM3 --baud 115200
+```
+
+On Raspberry Pi the port is often `/dev/ttyUSB0` or `/dev/ttyACM0`:
+
+```bash
+python serial_gcode_sender.py output.gcode --port /dev/ttyUSB0 --baud 115200
+```
+
+You can also send directly after generating:
+
+```powershell
+python plotter_pipeline.py photo.jpg output.gcode `
+  --style-reference style_reference.png `
+  --width-mm 100 `
+  --height-mm 125 `
+  --send-to-printer `
+  --serial-port COM3
+```
+
+For a full webcam-to-printer run:
+
+```powershell
+python plotter_pipeline.py output.gcode `
+  --capture-webcam `
+  --captured-photo captured_photo.jpg `
+  --style-reference style_reference.png `
+  --width-mm 100 `
+  --height-mm 125 `
+  --send-to-printer `
+  --serial-port COM3
+```
+
+Serial streaming is intentionally opt-in because it can move the printer. Confirm the pen is mounted, the bed is clear, the drawing origin and Z heights are safe, and the correct serial port is selected before using `--send-to-printer`.
 
 ## API Key Safety
 

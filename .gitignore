@@ -186,6 +186,8 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 # Generated plotter pipeline outputs
+captured_photo.jpg
+captured_*.jpg
 *_line.png
 line_drawing.png
 preprocessed_photo.png

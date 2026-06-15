@@ -380,6 +380,7 @@ def write_gcode(
         f.write("; Units: millimeters\n")
         f.write("G21\n")
         f.write("G90\n")
+        f.write("G28\n")
         f.write(f"G0 Z{lift_height:.3f}\n")
 
         for path in paths:
@@ -394,6 +395,7 @@ def write_gcode(
 
             f.write(f"G0 Z{lift_height:.3f}\n")
 
+        f.write(f"G0 Z{lift_height:.3f}\n")
         f.write(f"G0 X0.000 Y0.000 F{travel_speed:.0f}\n")
         f.write("M2\n")
 
