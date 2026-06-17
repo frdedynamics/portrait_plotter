@@ -3,8 +3,9 @@ import json
 import subprocess
 import sys
 import threading
-import time
 from pathlib import Path
+
+from status_led import StatusLed
 
 
 DEFAULT_CONFIG = {
@@ -12,7 +13,7 @@ DEFAULT_CONFIG = {
     "button_pull_up": True,
     "button_bounce_time": 0.2,
     "status_led_pin": None,
-    "error_led_pin": None,
+    "capture_countdown_seconds": 3,
     "pipeline_args": [
         "output.gcode",
         "--capture-picamera",
@@ -36,53 +37,28 @@ def load_config(path):
     return merged
 
 
-class OptionalLed:
-    def __init__(self, pin):
-        self.led = None
-        if pin is None:
-            return
-
-        try:
-            from gpiozero import LED
-        except ImportError as exc:
-            raise RuntimeError("Missing gpiozero. Install with `python -m pip install gpiozero`.") from exc
-
-        self.led = LED(pin)
-
-    def on(self):
-        if self.led:
-            self.led.on()
-
-    def off(self):
-        if self.led:
-            self.led.off()
-
-    def blink_error(self, count=3):
-        if not self.led:
-            return
-        for _ in range(count):
-            self.led.on()
-            time.sleep(0.15)
-            self.led.off()
-            time.sleep(0.15)
-
-
 class ButtonPipelineRunner:
     def __init__(self, config):
         self.config = config
         self.lock = threading.Lock()
         self.busy = False
-        self.status_led = OptionalLed(config.get("status_led_pin"))
-        self.error_led = OptionalLed(config.get("error_led_pin"))
+        self.status_led = StatusLed(config.get("status_led_pin"))
+        self.status_led.ready()
 
     def run_pipeline(self):
         if not self.lock.acquire(blocking=False):
             print("Pipeline is already running; ignoring button press.")
+            self.status_led.busy_press()
+            self.status_led.running()
             return
 
         self.busy = True
-        self.status_led.on()
         try:
+            countdown_seconds = float(self.config.get("capture_countdown_seconds", 0))
+            self.status_led.countdown(countdown_seconds)
+            self.status_led.capture_flash()
+            self.status_led.running()
+
             command = [
                 sys.executable,
                 str(Path(__file__).with_name("plotter_pipeline.py")),
@@ -92,11 +68,12 @@ class ButtonPipelineRunner:
             print(" ".join(command))
             subprocess.run(command, cwd=Path(__file__).parent, check=True)
             print("Pipeline finished.")
+            self.status_led.success()
         except subprocess.CalledProcessError as exc:
             print(f"Pipeline failed with exit code {exc.returncode}.", file=sys.stderr)
-            self.error_led.blink_error()
+            self.status_led.error()
         finally:
-            self.status_led.off()
+            self.status_led.ready()
             self.busy = False
             self.lock.release()
 

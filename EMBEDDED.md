@@ -45,12 +45,17 @@ Status LED:
 - `GPIO27` / physical pin `13` -> resistor, for example 330 ohm -> LED anode
 - LED cathode -> `GND`
 
-Optional error LED:
+The status LED is optional. Set `status_led_pin` to `null` if not used.
 
-- `GPIO22` / physical pin `15` -> resistor -> LED anode
-- LED cathode -> `GND`
+Current LED behaviors:
 
-The LEDs are optional. Set their config values to `null` if not used.
+- ready: slow breathing
+- capture countdown: blinks faster as capture approaches
+- capture moment: one long pulse
+- pipeline running: repeating pulse
+- success: three slow blinks, then ready breathing
+- error: fast blinking, then ready breathing
+- button pressed while busy: two quick blinks
 
 ## Raspberry Pi Setup
 
@@ -161,7 +166,8 @@ Edit:
 - `style_reference.png`
 - `width-mm` / `height-mm`
 - `serial-port`
-- optional LED pins
+- optional `status_led_pin`
+- `capture_countdown_seconds`
 
 Example key part:
 
@@ -169,7 +175,7 @@ Example key part:
 {
   "button_pin": 17,
   "status_led_pin": 27,
-  "error_led_pin": 22,
+  "capture_countdown_seconds": 3,
   "pipeline_args": [
     "output.gcode",
     "--capture-picamera",

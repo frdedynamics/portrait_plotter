@@ -3,7 +3,7 @@
   "button_pull_up": true,
   "button_bounce_time": 0.2,
   "status_led_pin": 27,
-  "error_led_pin": 22,
+  "capture_countdown_seconds": 3,
   "pipeline_args": [
     "output.gcode",
     "--capture-picamera",
