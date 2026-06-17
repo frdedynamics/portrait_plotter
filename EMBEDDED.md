@@ -47,6 +47,8 @@ Status LED:
 
 The status LED is optional. Set `status_led_pin` to `null` if not used.
 
+The status LED does not need a special hardware PWM pin. `gpiozero.PWMLED` uses software PWM, so a normal free GPIO is fine. Do not use the same GPIO for the button and LED.
+
 Current LED behaviors:
 
 - ready: slow breathing
@@ -316,6 +318,44 @@ If you also want to remove the local API key environment file:
 
 ```bash
 sudo rm -r /etc/portrait-plotter
+```
+
+## Troubleshooting
+
+### GPIO Already In Use
+
+If the service log says:
+
+```text
+gpiozero.exc.GPIOPinInUse: pin GPIO25 is already in use by <gpiozero.PWMLED object ...>
+```
+
+that usually means the same GPIO was configured twice inside the plotter process. Check that `button_pin` and `status_led_pin` are different:
+
+```json
+{
+  "button_pin": 17,
+  "status_led_pin": 25
+}
+```
+
+Recommended wiring:
+
+- button: `GPIO17` / physical pin `11` to `GND`
+- status LED: `GPIO25` / physical pin `22` through a resistor to LED anode, LED cathode to `GND`
+
+If you are not using the LED, disable it:
+
+```json
+{
+  "status_led_pin": null
+}
+```
+
+If the log says the pin is already used by another service, such as CODESYS, choose a different free GPIO or stop the service that owns that pin. After changing `embedded_config.json`, restart the plotter service:
+
+```bash
+sudo systemctl restart portrait-plotter.service
 ```
 
 ## Safety Checklist

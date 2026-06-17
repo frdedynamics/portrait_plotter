@@ -37,6 +37,17 @@ def load_config(path):
     return merged
 
 
+def validate_config(config):
+    button_pin = config.get("button_pin")
+    status_led_pin = config.get("status_led_pin")
+
+    if status_led_pin is not None and status_led_pin == button_pin:
+        raise RuntimeError(
+            f"button_pin and status_led_pin are both GPIO{button_pin}. "
+            "Use different GPIO pins, or set status_led_pin to null."
+        )
+
+
 class ButtonPipelineRunner:
     def __init__(self, config):
         self.config = config
@@ -124,8 +135,9 @@ def main():
 
     try:
         config = load_config(config_path)
-        runner = ButtonPipelineRunner(config)
+        validate_config(config)
         if args.once:
+            runner = ButtonPipelineRunner(config)
             runner.run_pipeline()
         else:
             run_button_loop(config)
