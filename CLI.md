@@ -50,8 +50,9 @@ usage: plotter_pipeline.py [-h] [--capture-webcam] [--capture-picamera]
                            [--min-size MIN_SIZE] [--simplify SIMPLIFY]
                            [--prune-spurs PRUNE_SPURS]
                            [--min-path-length MIN_PATH_LENGTH]
-                           [--no-optimize-order] [--send-to-printer]
-                           [--serial-port SERIAL_PORT]
+                           [--no-optimize-order] [--present-x PRESENT_X]
+                           [--present-y PRESENT_Y] [--no-present]
+                           [--send-to-printer] [--serial-port SERIAL_PORT]
                            [--serial-baud SERIAL_BAUD]
                            [--serial-connect-delay SERIAL_CONNECT_DELAY]
                            [--serial-response-timeout SERIAL_RESPONSE_TIMEOUT]
@@ -147,6 +148,11 @@ options:
   --prune-spurs PRUNE_SPURS
   --min-path-length MIN_PATH_LENGTH
   --no-optimize-order
+  --present-x PRESENT_X
+                        Final X position after lifting pen
+  --present-y PRESENT_Y
+                        Final Y position after lifting pen
+  --no-present          Do not move XY after the final pen lift
   --send-to-printer     Stream generated G-code to a serial printer
   --serial-port SERIAL_PORT
                         Serial port, e.g. COM3 or /dev/ttyUSB0
@@ -281,6 +287,8 @@ usage: bitmaptracer.py [-h] [--threshold THRESHOLD] [--invert]
                        [--lift-height LIFT_HEIGHT]
                        [--pen-down-height PEN_DOWN_HEIGHT] [--speed SPEED]
                        [--travel-speed TRAVEL_SPEED] [--no-optimize-order]
+                       [--present-x PRESENT_X] [--present-y PRESENT_Y]
+                       [--no-present]
                        input output
 
 positional arguments:
@@ -312,6 +320,11 @@ options:
                         Travel feed rate in mm/min; defaults to --speed
   --no-optimize-order   Keep traced path order instead of nearest-neighbor
                         ordering
+  --present-x PRESENT_X
+                        Final X position after lifting pen
+  --present-y PRESENT_Y
+                        Final Y position after lifting pen
+  --no-present          Do not move XY after the final pen lift
 ```
 
 ## `serial_gcode_sender.py`

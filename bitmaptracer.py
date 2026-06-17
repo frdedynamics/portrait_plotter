@@ -357,6 +357,8 @@ def write_gcode(
     travel_speed=None,
     pen_down_height=0.0,
     optimize_order=True,
+    present_x=0.0,
+    present_y=220.0,
 ):
     if width_mm <= 0 or height_mm <= 0:
         raise ValueError("G-code width and height must be positive millimeter values.")
@@ -395,8 +397,10 @@ def write_gcode(
 
             f.write(f"G0 Z{lift_height:.3f}\n")
 
+        f.write("; End: lift pen and present work\n")
         f.write(f"G0 Z{lift_height:.3f}\n")
-        f.write(f"G0 X0.000 Y0.000 F{travel_speed:.0f}\n")
+        if present_x is not None and present_y is not None:
+            f.write(f"G0 X{present_x:.3f} Y{present_y:.3f} F{travel_speed:.0f}\n")
         f.write("M2\n")
 
     print(f"Saved G-code: {output_path}")
@@ -442,6 +446,8 @@ def bitmap_to_gcode(
     prune_spurs=8,
     min_path_length=4.0,
     optimize_order=True,
+    present_x=0.0,
+    present_y=220.0,
 ):
     paths, image_width_px, image_height_px = trace_bitmap(
         input_path=input_path,
@@ -474,6 +480,8 @@ def bitmap_to_gcode(
         travel_speed=travel_speed,
         pen_down_height=pen_down_height,
         optimize_order=optimize_order,
+        present_x=present_x,
+        present_y=present_y,
     )
 
 
@@ -496,6 +504,9 @@ if __name__ == "__main__":
     parser.add_argument("--speed", type=float, default=1500.0, help="Drawing feed rate in mm/min")
     parser.add_argument("--travel-speed", type=float, default=None, help="Travel feed rate in mm/min; defaults to --speed")
     parser.add_argument("--no-optimize-order", action="store_true", help="Keep traced path order instead of nearest-neighbor ordering")
+    parser.add_argument("--present-x", type=float, default=0.0, help="Final X position after lifting pen")
+    parser.add_argument("--present-y", type=float, default=220.0, help="Final Y position after lifting pen")
+    parser.add_argument("--no-present", action="store_true", help="Do not move XY after the final pen lift")
 
     args = parser.parse_args()
     output_lower = args.output.lower()
@@ -519,6 +530,8 @@ if __name__ == "__main__":
                 travel_speed=args.travel_speed,
                 pen_down_height=args.pen_down_height,
                 optimize_order=not args.no_optimize_order,
+                present_x=None if args.no_present else args.present_x,
+                present_y=None if args.no_present else args.present_y,
             )
         else:
             bitmap_to_svg(

@@ -195,6 +195,8 @@ def run_pipeline(args):
         prune_spurs=args.prune_spurs,
         min_path_length=args.min_path_length,
         optimize_order=not args.no_optimize_order,
+        present_x=None if args.no_present else args.present_x,
+        present_y=None if args.no_present else args.present_y,
     )
 
     if args.send_to_printer:
@@ -266,6 +268,9 @@ def build_parser():
     parser.add_argument("--prune-spurs", type=int, default=16)
     parser.add_argument("--min-path-length", type=float, default=12.0)
     parser.add_argument("--no-optimize-order", action="store_true")
+    parser.add_argument("--present-x", type=float, default=0.0, help="Final X position after lifting pen")
+    parser.add_argument("--present-y", type=float, default=220.0, help="Final Y position after lifting pen")
+    parser.add_argument("--no-present", action="store_true", help="Do not move XY after the final pen lift")
 
     parser.add_argument("--send-to-printer", action="store_true", help="Stream generated G-code to a serial printer")
     parser.add_argument("--serial-port", default=None, help="Serial port, e.g. COM3 or /dev/ttyUSB0")

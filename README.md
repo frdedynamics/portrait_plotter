@@ -179,6 +179,8 @@ python plotter_pipeline.py output.gcode `
 
 The defaults in `plotter_pipeline.py` are more aggressive than raw `bitmaptracer.py` because GPT-generated line drawings often contain small texture marks that become tiny plotter moves.
 
+Generated G-code homes with `G28` at the start. At the end it lifts the pen and presents the work at `X0 Y220` by default. Adjust with `--present-x` / `--present-y`, or disable the final XY move with `--no-present`.
+
 ## Send G-code To Ender 3
 
 First do a dry run. This reads the G-code and prints the commands that would be sent, without opening the serial port:
