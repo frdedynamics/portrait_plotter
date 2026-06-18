@@ -20,7 +20,7 @@ class StatusLed:
         except ImportError as exc:
             raise RuntimeError("Missing gpiozero. Install with `python -m pip install gpiozero`.") from exc
 
-        self.led = PWMLED(pin)
+        self.led = PWMLED(pin, frequency=1000)
 
     def available(self):
         return self.led is not None
@@ -122,7 +122,7 @@ class StatusLed:
             phase = ((time.monotonic() - started) % period) / period
             wave = (1.0 - math.cos(phase * 2.0 * math.pi)) / 2.0
             self._set(minimum + ((maximum - minimum) * wave))
-            if stop_event.wait(0.04):
+            if stop_event.wait(0.01):
                 break
 
     def _countdown_pattern(self, stop_event, seconds):

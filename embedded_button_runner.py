@@ -111,7 +111,8 @@ class ButtonPipelineRunner:
                 raise subprocess.CalledProcessError(return_code, command)
 
             print("Pipeline finished.")
-            self.status_led.success()
+            if "--capture-only" not in self.config["pipeline_args"]:
+                self.status_led.success()
         except subprocess.CalledProcessError as exc:
             print(f"Pipeline failed with exit code {exc.returncode}.", file=sys.stderr)
             self.status_led.error()

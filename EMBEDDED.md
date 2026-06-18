@@ -61,6 +61,8 @@ Current LED behaviors:
 - error: fast blinking, then very slow ready breathing
 - button pressed while busy: two quick blinks
 
+Capture-only tests skip the three-blink success pattern and return directly to ready breathing. Otherwise, the short test finishes so quickly after capture that the success indication can be mistaken for a processing pattern.
+
 Set the maximum LED brightness with `status_led_brightness` in `embedded_config.json`. The accepted range is `0.0` to `1.0`; the default is `0.35`. Every LED state is scaled by this value. Ready breathing stays between 4% and 22% of the configured maximum, while processing breathing uses the wider 8% to 100% range.
 
 ```json
