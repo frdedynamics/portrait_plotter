@@ -224,6 +224,7 @@ Edit:
 - `style_reference.png`
 - `width-mm` / `height-mm`
 - `serial-port`
+- optional `--signature`, `--signature-width`, `--signature-margin`, and `--signature-gap` inside `pipeline_args`
 - optional `status_led_pin`
 - `status_led_brightness`
 - `status_led_idle_mode`
@@ -251,6 +252,15 @@ Example key part:
     "--serial-port", "/dev/serial/by-id/YOUR_PRINTER_SERIAL_ID"
   ]
 }
+```
+
+To enable the HVLRobotics signature, add these entries inside `pipeline_args`:
+
+```json
+"--signature",
+"--signature-width", "28",
+"--signature-margin", "4",
+"--signature-gap", "2"
 ```
 
 ## Test Without Button

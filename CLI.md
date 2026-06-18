@@ -52,6 +52,8 @@ usage: plotter_pipeline.py [-h] [--capture-webcam] [--capture-picamera]
                            [--min-path-length MIN_PATH_LENGTH]
                            [--no-optimize-order] [--present-x PRESENT_X]
                            [--present-y PRESENT_Y] [--no-present]
+                           [--signature] [--signature-width SIGNATURE_WIDTH]
+                           [--signature-margin SIGNATURE_MARGIN]
                            [--send-to-printer] [--serial-port SERIAL_PORT]
                            [--serial-baud SERIAL_BAUD]
                            [--serial-connect-delay SERIAL_CONNECT_DELAY]
@@ -156,6 +158,11 @@ options:
   --present-y PRESENT_Y
                         Final Y position after lifting pen
   --no-present          Do not move XY after the final pen lift
+  --signature           Add an HVLRobotics signature in the bottom-left corner
+  --signature-width SIGNATURE_WIDTH
+                        Signature width in millimeters
+  --signature-margin SIGNATURE_MARGIN
+                        Signature left and bottom margin in millimeters
   --send-to-printer     Stream generated G-code to a serial printer
   --serial-port SERIAL_PORT
                         Serial port, e.g. COM3 or /dev/ttyUSB0
@@ -291,7 +298,9 @@ usage: bitmaptracer.py [-h] [--threshold THRESHOLD] [--invert]
                        [--pen-down-height PEN_DOWN_HEIGHT] [--speed SPEED]
                        [--travel-speed TRAVEL_SPEED] [--no-optimize-order]
                        [--present-x PRESENT_X] [--present-y PRESENT_Y]
-                       [--no-present]
+                       [--no-present] [--signature]
+                       [--signature-width SIGNATURE_WIDTH]
+                       [--signature-margin SIGNATURE_MARGIN]
                        input output
 
 positional arguments:
@@ -328,6 +337,11 @@ options:
   --present-y PRESENT_Y
                         Final Y position after lifting pen
   --no-present          Do not move XY after the final pen lift
+  --signature           Add an HVLRobotics signature in the bottom-left corner
+  --signature-width SIGNATURE_WIDTH
+                        Signature width in millimeters
+  --signature-margin SIGNATURE_MARGIN
+                        Signature left and bottom margin in millimeters
 ```
 
 ## `serial_gcode_sender.py`

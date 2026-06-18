@@ -181,6 +181,29 @@ The defaults in `plotter_pipeline.py` are more aggressive than raw `bitmaptracer
 
 Generated G-code homes with `G28` at the start. At the end it lifts the pen and presents the work at `X0 Y220` by default. Adjust with `--present-x` / `--present-y`, or disable the final XY move with `--no-present`.
 
+## Optional HVLRobotics Signature
+
+Add a single-line `HVLRobotics` signature in the bottom-left corner:
+
+```powershell
+python plotter_pipeline.py photo.jpg output.gcode `
+  --style-reference style_reference.png `
+  --width-mm 100 `
+  --signature
+```
+
+The default signature is 28 mm wide with a 4 mm left and bottom margin. Adjust it with:
+
+```text
+--signature-width 24
+--signature-margin 5
+--signature-gap 2
+```
+
+The signature is appended after the portrait paths and before the final presentation move. When enabled, the portrait is uniformly scaled and shifted upward to reserve a bottom band for the signature, including the configured gap. This preserves the portrait aspect ratio and guarantees that portrait lines cannot overlap the signature.
+
+The signature is generated as plotter-ready vector strokes and does not require an additional font dependency.
+
 ## Send G-code To Ender 3
 
 First do a dry run. This reads the G-code and prints the commands that would be sent, without opening the serial port:
