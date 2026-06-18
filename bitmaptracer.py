@@ -17,6 +17,7 @@ from PIL import Image
 import numpy as np
 import cv2
 import argparse
+import math
 from skimage.morphology import skeletonize, remove_small_objects
 
 from signature import normalized_hvlrobotics_signature_paths
@@ -245,6 +246,118 @@ def hvlrobotics_signature_paths(width_mm, left_mm=4.0, bottom_mm=4.0):
     ]
 
 
+def rotate_paths(paths, angle_degrees):
+    angle = math.radians(angle_degrees)
+    cosine = math.cos(angle)
+    sine = math.sin(angle)
+    return [
+        [
+            ((x * cosine) - (y * sine), (x * sine) + (y * cosine))
+            for x, y in path
+        ]
+        for path in paths
+    ]
+
+
+def minimum_portrait_y_in_x_range(paths, left, right):
+    minimum_y = None
+    for path in paths:
+        for first, second in zip(path, path[1:]):
+            x1, y1 = first
+            x2, y2 = second
+            segment_left = min(x1, x2)
+            segment_right = max(x1, x2)
+            if segment_right < left or segment_left > right:
+                continue
+
+            if x1 == x2:
+                candidate_y = min(y1, y2)
+            else:
+                clipped_left = max(left, segment_left)
+                clipped_right = min(right, segment_right)
+                left_ratio = (clipped_left - x1) / (x2 - x1)
+                right_ratio = (clipped_right - x1) / (x2 - x1)
+                candidate_y = min(
+                    y1 + ((y2 - y1) * left_ratio),
+                    y1 + ((y2 - y1) * right_ratio),
+                )
+
+            if minimum_y is None or candidate_y < minimum_y:
+                minimum_y = candidate_y
+
+    return minimum_y
+
+
+def place_signature_paths(
+    portrait_paths,
+    drawing_width,
+    drawing_height,
+    signature_width,
+    margin,
+    gap,
+    position,
+    angle,
+):
+    signature = rotate_paths(
+        hvlrobotics_signature_paths(signature_width, 0.0, 0.0),
+        angle,
+    )
+    xs = [x for path in signature for x, _ in path]
+    ys = [y for path in signature for _, y in path]
+    min_x = min(xs)
+    max_x = max(xs)
+    min_y = min(ys)
+    max_y = max(ys)
+    signature_box_width = max_x - min_x
+    signature_box_height = max_y - min_y
+
+    if signature_box_width + (2 * margin) > drawing_width:
+        raise ValueError("Signature is too wide for the drawing area.")
+
+    if position == "bottom-left":
+        start_x = margin
+        end_x = max(margin, (drawing_width / 2.0) - signature_box_width)
+        candidate_xs = np.arange(start_x, end_x + 0.01, 1.0)
+    else:
+        start_x = drawing_width - margin - signature_box_width
+        end_x = min(start_x, drawing_width / 2.0)
+        candidate_xs = np.arange(start_x, end_x - 0.01, -1.0)
+
+    best = None
+    for index, box_left in enumerate(candidate_xs):
+        box_right = box_left + signature_box_width
+        nearby_min_y = minimum_portrait_y_in_x_range(
+            portrait_paths,
+            box_left - gap,
+            box_right + gap,
+        )
+        if nearby_min_y is None:
+            box_bottom = margin
+        else:
+            box_bottom = nearby_min_y - gap - signature_box_height
+
+        if box_bottom < margin or box_bottom + signature_box_height > drawing_height:
+            continue
+
+        score = (box_bottom, -index)
+        if best is None or score > best[0]:
+            best = (score, box_left, box_bottom)
+
+    if best is None:
+        raise ValueError(
+            "No collision-free signature position was found. "
+            "Reduce --signature-width, --signature-margin, or --signature-gap."
+        )
+
+    _, box_left, box_bottom = best
+    x_offset = box_left - min_x
+    y_offset = box_bottom - min_y
+    return [
+        [(x + x_offset, y + y_offset) for x, y in path]
+        for path in signature
+    ]
+
+
 GCODE_EXTENSIONS = {".gcode", ".gc", ".nc", ".tap"}
 
 
@@ -383,6 +496,8 @@ def write_gcode(
     signature_width=28.0,
     signature_margin=4.0,
     signature_gap=2.0,
+    signature_position="bottom-right",
+    signature_angle=6.0,
 ):
     if width_mm <= 0 or height_mm <= 0:
         raise ValueError("G-code width and height must be positive millimeter values.")
@@ -394,60 +509,34 @@ def write_gcode(
     if optimize_order:
         paths = order_paths_nearest(paths)
 
-    signature_paths = []
-    portrait_bottom = 0.0
-    if signature:
-        if signature_gap < 0:
-            raise ValueError("Signature gap cannot be negative.")
-        signature_paths = hvlrobotics_signature_paths(
-            width_mm=signature_width,
-            left_mm=signature_margin,
-            bottom_mm=signature_margin,
-        )
-        if optimize_order:
-            signature_paths = order_paths_nearest(signature_paths)
-        signature_x = [x for path in signature_paths for x, _ in path]
-        signature_y = [y for path in signature_paths for _, y in path]
-        if max(signature_x) > width_mm or max(signature_y) > height_mm:
-            raise ValueError(
-                "Signature does not fit within the drawing area. "
-                "Reduce --signature-width or --signature-margin."
-            )
-        portrait_bottom = max(signature_y) + signature_gap
-        if portrait_bottom >= height_mm:
-            raise ValueError(
-                "Signature reserve area leaves no room for the portrait. "
-                "Reduce --signature-width, --signature-margin, or --signature-gap."
-            )
-
     x_scale = width_mm / max(image_width_px - 1, 1)
     y_scale = height_mm / max(image_height_px - 1, 1)
 
-    portrait_points_mm = [
-        (x * x_scale, height_mm - (y * y_scale))
-        for path in paths
-        for x, y in path
-    ]
-    portrait_scale = 1.0
-    portrait_y_offset = 0.0
-    portrait_x_center = width_mm / 2.0
-    if signature and portrait_points_mm:
-        portrait_min_y = min(y for _, y in portrait_points_mm)
-        portrait_max_y = max(y for _, y in portrait_points_mm)
-        if portrait_min_y < portrait_bottom:
-            portrait_height = max(portrait_max_y - portrait_min_y, 1e-9)
-            available_height = height_mm - portrait_bottom
-            portrait_scale = min(1.0, available_height / portrait_height)
-            portrait_y_offset = portrait_bottom - (portrait_min_y * portrait_scale)
-
     def to_mm(point):
         x, y = point
-        original_x = x * x_scale
-        original_y = height_mm - (y * y_scale)
-        return (
-            portrait_x_center + ((original_x - portrait_x_center) * portrait_scale),
-            portrait_y_offset + (original_y * portrait_scale),
+        return x * x_scale, height_mm - (y * y_scale)
+
+    portrait_paths_mm = [
+        [to_mm(point) for point in path]
+        for path in paths
+    ]
+
+    signature_paths = []
+    if signature:
+        if signature_gap < 0:
+            raise ValueError("Signature gap cannot be negative.")
+        signature_paths = place_signature_paths(
+            portrait_paths=portrait_paths_mm,
+            drawing_width=width_mm,
+            drawing_height=height_mm,
+            signature_width=signature_width,
+            margin=signature_margin,
+            gap=signature_gap,
+            position=signature_position,
+            angle=signature_angle,
         )
+        if optimize_order:
+            signature_paths = order_paths_nearest(signature_paths)
 
     def write_mm_path(file, path):
         start_x, start_y = path[0]
@@ -467,13 +556,12 @@ def write_gcode(
         f.write(f"G0 Z{lift_height:.3f}\n")
         if signature:
             f.write(
-                f"; Portrait scaled to {portrait_scale:.4f} "
-                f"and shifted by {portrait_y_offset:.3f} mm "
-                f"for signature clearance\n"
+                f"; Signature position: {signature_position}, "
+                f"angle: {signature_angle:.1f} degrees\n"
             )
 
-        for path in paths:
-            write_mm_path(f, [to_mm(point) for point in path])
+        for path in portrait_paths_mm:
+            write_mm_path(f, path)
 
         if signature:
             f.write("; HVLRobotics signature\n")
@@ -537,6 +625,8 @@ def bitmap_to_gcode(
     signature_width=28.0,
     signature_margin=4.0,
     signature_gap=2.0,
+    signature_position="bottom-right",
+    signature_angle=6.0,
 ):
     paths, image_width_px, image_height_px = trace_bitmap(
         input_path=input_path,
@@ -575,6 +665,8 @@ def bitmap_to_gcode(
         signature_width=signature_width,
         signature_margin=signature_margin,
         signature_gap=signature_gap,
+        signature_position=signature_position,
+        signature_angle=signature_angle,
     )
 
 
@@ -600,10 +692,12 @@ if __name__ == "__main__":
     parser.add_argument("--present-x", type=float, default=0.0, help="Final X position after lifting pen")
     parser.add_argument("--present-y", type=float, default=220.0, help="Final Y position after lifting pen")
     parser.add_argument("--no-present", action="store_true", help="Do not move XY after the final pen lift")
-    parser.add_argument("--signature", action="store_true", help="Add an HVLRobotics signature in the bottom-left corner")
+    parser.add_argument("--signature", action="store_true", help="Add an HVLRobotics signature near the portrait")
     parser.add_argument("--signature-width", type=float, default=28.0, help="Signature width in millimeters")
-    parser.add_argument("--signature-margin", type=float, default=4.0, help="Signature left and bottom margin in millimeters")
+    parser.add_argument("--signature-margin", type=float, default=4.0, help="Minimum signature margin from the paper edge in millimeters")
     parser.add_argument("--signature-gap", type=float, default=2.0, help="Clear space between signature and portrait in millimeters")
+    parser.add_argument("--signature-position", choices=["bottom-left", "bottom-right"], default="bottom-right", help="Preferred lower corner for automatic signature placement")
+    parser.add_argument("--signature-angle", type=float, default=6.0, help="Signature rotation in degrees; positive angles rise to the right")
 
     args = parser.parse_args()
     output_lower = args.output.lower()
@@ -633,6 +727,8 @@ if __name__ == "__main__":
                 signature_width=args.signature_width,
                 signature_margin=args.signature_margin,
                 signature_gap=args.signature_gap,
+                signature_position=args.signature_position,
+                signature_angle=args.signature_angle,
             )
         else:
             bitmap_to_svg(

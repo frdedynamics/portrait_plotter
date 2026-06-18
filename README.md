@@ -183,7 +183,7 @@ Generated G-code homes with `G28` at the start. At the end it lifts the pen and 
 
 ## Optional HVLRobotics Signature
 
-Add a single-line `HVLRobotics` signature in the bottom-left corner:
+Add a single-line `HVLRobotics` signature near the bottom-right of the portrait:
 
 ```powershell
 python plotter_pipeline.py photo.jpg output.gcode `
@@ -192,15 +192,17 @@ python plotter_pipeline.py photo.jpg output.gcode `
   --signature
 ```
 
-The default signature is 28 mm wide with a 4 mm left and bottom margin. Adjust it with:
+The default signature is 28 mm wide, prefers the bottom-right corner, maintains at least a 4 mm paper margin, and tilts 6 degrees upward to the right. Adjust it with:
 
 ```text
 --signature-width 24
 --signature-margin 5
 --signature-gap 2
+--signature-position bottom-right
+--signature-angle 6
 ```
 
-The signature is appended after the portrait paths and before the final presentation move. When enabled, the portrait is uniformly scaled and shifted upward to reserve a bottom band for the signature, including the configured gap. This preserves the portrait aspect ratio and guarantees that portrait lines cannot overlap the signature.
+The signature is appended after the portrait paths and before the final presentation move. The portrait is not moved or scaled. Instead, the placement code searches the preferred lower corner for a local collision-free position and preserves the configured gap from nearby portrait strokes. Use `--signature-position bottom-left` to search the other lower corner. If the selected corner has no suitable space, generation fails instead of overlapping the portrait.
 
 The signature centerline geometry is embedded directly in `signature.py`. The source artwork is not required at runtime or when deploying to the Raspberry Pi.
 

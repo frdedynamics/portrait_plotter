@@ -54,8 +54,10 @@ usage: plotter_pipeline.py [-h] [--capture-webcam] [--capture-picamera]
                            [--present-y PRESENT_Y] [--no-present]
                            [--signature] [--signature-width SIGNATURE_WIDTH]
                            [--signature-margin SIGNATURE_MARGIN]
-                           [--signature-gap SIGNATURE_GAP] [--send-to-printer]
-                           [--serial-port SERIAL_PORT]
+                           [--signature-gap SIGNATURE_GAP]
+                           [--signature-position {bottom-left,bottom-right}]
+                           [--signature-angle SIGNATURE_ANGLE]
+                           [--send-to-printer] [--serial-port SERIAL_PORT]
                            [--serial-baud SERIAL_BAUD]
                            [--serial-connect-delay SERIAL_CONNECT_DELAY]
                            [--serial-response-timeout SERIAL_RESPONSE_TIMEOUT]
@@ -159,14 +161,21 @@ options:
   --present-y PRESENT_Y
                         Final Y position after lifting pen
   --no-present          Do not move XY after the final pen lift
-  --signature           Add an HVLRobotics signature in the bottom-left corner
+  --signature           Add an HVLRobotics signature near the portrait
   --signature-width SIGNATURE_WIDTH
                         Signature width in millimeters
   --signature-margin SIGNATURE_MARGIN
-                        Signature left and bottom margin in millimeters
+                        Minimum signature margin from the paper edge in
+                        millimeters
   --signature-gap SIGNATURE_GAP
                         Clear space between signature and portrait in
                         millimeters
+  --signature-position {bottom-left,bottom-right}
+                        Preferred lower corner for automatic signature
+                        placement
+  --signature-angle SIGNATURE_ANGLE
+                        Signature rotation in degrees; positive angles rise to
+                        the right
   --send-to-printer     Stream generated G-code to a serial printer
   --serial-port SERIAL_PORT
                         Serial port, e.g. COM3 or /dev/ttyUSB0
@@ -306,6 +315,8 @@ usage: bitmaptracer.py [-h] [--threshold THRESHOLD] [--invert]
                        [--signature-width SIGNATURE_WIDTH]
                        [--signature-margin SIGNATURE_MARGIN]
                        [--signature-gap SIGNATURE_GAP]
+                       [--signature-position {bottom-left,bottom-right}]
+                       [--signature-angle SIGNATURE_ANGLE]
                        input output
 
 positional arguments:
@@ -342,14 +353,21 @@ options:
   --present-y PRESENT_Y
                         Final Y position after lifting pen
   --no-present          Do not move XY after the final pen lift
-  --signature           Add an HVLRobotics signature in the bottom-left corner
+  --signature           Add an HVLRobotics signature near the portrait
   --signature-width SIGNATURE_WIDTH
                         Signature width in millimeters
   --signature-margin SIGNATURE_MARGIN
-                        Signature left and bottom margin in millimeters
+                        Minimum signature margin from the paper edge in
+                        millimeters
   --signature-gap SIGNATURE_GAP
                         Clear space between signature and portrait in
                         millimeters
+  --signature-position {bottom-left,bottom-right}
+                        Preferred lower corner for automatic signature
+                        placement
+  --signature-angle SIGNATURE_ANGLE
+                        Signature rotation in degrees; positive angles rise to
+                        the right
 ```
 
 ## `serial_gcode_sender.py`
