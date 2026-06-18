@@ -437,16 +437,31 @@ def write_gcode(
 
     x_scale = width_mm / max(image_width_px - 1, 1)
     y_scale = height_mm / max(image_height_px - 1, 1)
-    portrait_scale = min(1.0, (height_mm - portrait_bottom) / height_mm)
-    portrait_x_offset = (width_mm - (width_mm * portrait_scale)) / 2.0
+
+    portrait_points_mm = [
+        (x * x_scale, height_mm - (y * y_scale))
+        for path in paths
+        for x, y in path
+    ]
+    portrait_scale = 1.0
+    portrait_y_offset = 0.0
+    portrait_x_center = width_mm / 2.0
+    if signature and portrait_points_mm:
+        portrait_min_y = min(y for _, y in portrait_points_mm)
+        portrait_max_y = max(y for _, y in portrait_points_mm)
+        if portrait_min_y < portrait_bottom:
+            portrait_height = max(portrait_max_y - portrait_min_y, 1e-9)
+            available_height = height_mm - portrait_bottom
+            portrait_scale = min(1.0, available_height / portrait_height)
+            portrait_y_offset = portrait_bottom - (portrait_min_y * portrait_scale)
 
     def to_mm(point):
         x, y = point
         original_x = x * x_scale
         original_y = height_mm - (y * y_scale)
         return (
-            portrait_x_offset + (original_x * portrait_scale),
-            portrait_bottom + (original_y * portrait_scale),
+            portrait_x_center + ((original_x - portrait_x_center) * portrait_scale),
+            portrait_y_offset + (original_y * portrait_scale),
         )
 
     def write_mm_path(file, path):
@@ -468,7 +483,8 @@ def write_gcode(
         if signature:
             f.write(
                 f"; Portrait scaled to {portrait_scale:.4f} "
-                f"with Y >= {portrait_bottom:.3f} mm for signature clearance\n"
+                f"and shifted by {portrait_y_offset:.3f} mm "
+                f"for signature clearance\n"
             )
 
         for path in paths:

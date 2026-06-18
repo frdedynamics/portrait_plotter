@@ -54,7 +54,8 @@ usage: plotter_pipeline.py [-h] [--capture-webcam] [--capture-picamera]
                            [--present-y PRESENT_Y] [--no-present]
                            [--signature] [--signature-width SIGNATURE_WIDTH]
                            [--signature-margin SIGNATURE_MARGIN]
-                           [--send-to-printer] [--serial-port SERIAL_PORT]
+                           [--signature-gap SIGNATURE_GAP] [--send-to-printer]
+                           [--serial-port SERIAL_PORT]
                            [--serial-baud SERIAL_BAUD]
                            [--serial-connect-delay SERIAL_CONNECT_DELAY]
                            [--serial-response-timeout SERIAL_RESPONSE_TIMEOUT]
@@ -163,6 +164,9 @@ options:
                         Signature width in millimeters
   --signature-margin SIGNATURE_MARGIN
                         Signature left and bottom margin in millimeters
+  --signature-gap SIGNATURE_GAP
+                        Clear space between signature and portrait in
+                        millimeters
   --send-to-printer     Stream generated G-code to a serial printer
   --serial-port SERIAL_PORT
                         Serial port, e.g. COM3 or /dev/ttyUSB0
@@ -301,6 +305,7 @@ usage: bitmaptracer.py [-h] [--threshold THRESHOLD] [--invert]
                        [--no-present] [--signature]
                        [--signature-width SIGNATURE_WIDTH]
                        [--signature-margin SIGNATURE_MARGIN]
+                       [--signature-gap SIGNATURE_GAP]
                        input output
 
 positional arguments:
@@ -342,6 +347,9 @@ options:
                         Signature width in millimeters
   --signature-margin SIGNATURE_MARGIN
                         Signature left and bottom margin in millimeters
+  --signature-gap SIGNATURE_GAP
+                        Clear space between signature and portrait in
+                        millimeters
 ```
 
 ## `serial_gcode_sender.py`
