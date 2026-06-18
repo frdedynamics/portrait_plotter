@@ -202,7 +202,7 @@ The default signature is 28 mm wide with a 4 mm left and bottom margin. Adjust i
 
 The signature is appended after the portrait paths and before the final presentation move. When enabled, the portrait is uniformly scaled and shifted upward to reserve a bottom band for the signature, including the configured gap. This preserves the portrait aspect ratio and guarantees that portrait lines cannot overlap the signature.
 
-The signature is traced from the bundled `signature_source.png` artwork into plotter-ready centerline strokes. Keep that asset beside `signature.py` when deploying the project.
+The signature centerline geometry is embedded directly in `signature.py`. The source artwork is not required at runtime or when deploying to the Raspberry Pi.
 
 ## Send G-code To Ender 3
 

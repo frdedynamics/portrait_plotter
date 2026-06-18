@@ -263,7 +263,7 @@ To enable the HVLRobotics signature, add these entries inside `pipeline_args`:
 "--signature-gap", "2"
 ```
 
-The signature is traced from `signature_source.png`, so deploy that file beside `signature.py` on the Raspberry Pi.
+The precomputed signature geometry is embedded in `signature.py`; no separate signature image is needed on the Raspberry Pi.
 
 ## Test Without Button
 

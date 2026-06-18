@@ -19,7 +19,7 @@ import cv2
 import argparse
 from skimage.morphology import skeletonize, remove_small_objects
 
-from signature import render_hvlrobotics_signature_mask
+from signature import normalized_hvlrobotics_signature_paths
 
 
 def rdp(points, epsilon):
@@ -233,30 +233,15 @@ def hvlrobotics_signature_paths(width_mm, left_mm=4.0, bottom_mm=4.0):
     if left_mm < 0 or bottom_mm < 0:
         raise ValueError("Signature margins cannot be negative.")
 
-    skeleton = skeletonize(render_hvlrobotics_signature_mask())
-    paths = [
-        rdp(path, 0.8)
-        for path in trace_skeleton(skeleton)
-        if path_length(path) >= 3.0
-    ]
-
-    xs = [x for path in paths for x, _ in path]
-    ys = [y for path in paths for _, y in path]
-    min_x = min(xs)
-    max_x = max(xs)
-    min_y = min(ys)
-    max_y = max(ys)
-    scale = width_mm / max(max_x - min_x, 1)
-
     return [
         [
             (
-                left_mm + ((x - min_x) * scale),
-                bottom_mm + ((max_y - y) * scale),
+                left_mm + (float(x) * width_mm),
+                bottom_mm + (float(y) * width_mm),
             )
             for x, y in path
         ]
-        for path in paths
+        for path in normalized_hvlrobotics_signature_paths()
     ]
 
 
