@@ -120,14 +120,17 @@ class StatusLed:
 
     def _ready_beacon(self, stop_event):
         while not stop_event.is_set():
-            for _ in range(2):
-                self._set(0.35)
-                if stop_event.wait(0.08):
-                    return
-                self._set(0.0)
-                if stop_event.wait(0.08):
-                    return
-            if stop_event.wait(3.0):
+            self._set(0.5)
+            if stop_event.wait(0.07):
+                break
+            self._set(0.0)
+            if stop_event.wait(0.1):
+                break
+            self._set(1.0)
+            if stop_event.wait(0.22):
+                break
+            self._set(0.0)
+            if stop_event.wait(2.5):
                 break
 
     def _countdown_pattern(self, stop_event, seconds):
