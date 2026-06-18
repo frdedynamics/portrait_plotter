@@ -51,17 +51,17 @@ The status LED does not need a special hardware PWM pin. `gpiozero.PWMLED` uses 
 
 Current LED behaviors:
 
-- ready: steady dim light
-- camera startup and warmup: slow double pulse
-- capture countdown: one short beat per second after the camera is ready
-- capture moment: 0.75-second solid light triggered when camera capture starts
+- ready: very slow, dim 8-second breathing cycle
+- camera startup and warmup: faster 1.8-second breathing cycle
+- capture countdown: short flashes that accelerate toward the capture moment
+- capture moment: 1-second solid light triggered when camera capture starts
 - capture-to-processing transition: 0.75-second fully dark pause
-- pipeline running: slow double pulse
-- success: three slow blinks, then steady dim ready light
-- error: fast blinking, then steady dim ready light
+- pipeline running: faster 1.8-second breathing cycle
+- success: three slow blinks, then very slow ready breathing
+- error: fast blinking, then very slow ready breathing
 - button pressed while busy: two quick blinks
 
-Set the maximum LED brightness with `status_led_brightness` in `embedded_config.json`. The accepted range is `0.0` to `1.0`; the default is `0.35`. Every LED state is scaled by this value, and the steady ready light uses 15% of the configured maximum.
+Set the maximum LED brightness with `status_led_brightness` in `embedded_config.json`. The accepted range is `0.0` to `1.0`; the default is `0.35`. Every LED state is scaled by this value. Ready breathing stays between 4% and 22% of the configured maximum, while processing breathing uses the wider 8% to 100% range.
 
 ```json
 {

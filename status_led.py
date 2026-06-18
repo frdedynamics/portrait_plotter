@@ -1,3 +1,4 @@
+import math
 import threading
 import time
 
@@ -61,10 +62,24 @@ class StatusLed:
             self._set(value)
 
     def ready(self):
-        self.on(0.15)
+        self._start_pattern(
+            lambda stop_event: self._breathe(
+                stop_event,
+                period=8.0,
+                minimum=0.04,
+                maximum=0.22,
+            )
+        )
 
     def running(self):
-        self._start_pattern(self._pulse_running)
+        self._start_pattern(
+            lambda stop_event: self._breathe(
+                stop_event,
+                period=1.8,
+                minimum=0.08,
+                maximum=1.0,
+            )
+        )
 
     def success(self):
         self._run_blocking_pattern(self._blink_count, count=3, on_time=0.35, off_time=0.25)
@@ -82,7 +97,7 @@ class StatusLed:
         self._stop_pattern()
         started = time.monotonic()
         self._set(1.0)
-        time.sleep(0.75)
+        time.sleep(1.0)
         self._set(0.0)
         time.sleep(0.75)
         return started
@@ -101,19 +116,13 @@ class StatusLed:
         self._stop_pattern()
         func(self._stop_event, **kwargs)
 
-    def _pulse_running(self, stop_event):
+    def _breathe(self, stop_event, period, minimum, maximum):
+        started = time.monotonic()
         while not stop_event.is_set():
-            self._set(0.8)
-            if stop_event.wait(0.15):
-                break
-            self._set(0.0)
-            if stop_event.wait(0.12):
-                break
-            self._set(0.8)
-            if stop_event.wait(0.15):
-                break
-            self._set(0.0)
-            if stop_event.wait(1.5):
+            phase = ((time.monotonic() - started) % period) / period
+            wave = (1.0 - math.cos(phase * 2.0 * math.pi)) / 2.0
+            self._set(minimum + ((maximum - minimum) * wave))
+            if stop_event.wait(0.04):
                 break
 
     def _countdown_pattern(self, stop_event, seconds):
@@ -124,11 +133,15 @@ class StatusLed:
             wait_time = next_beat - time.monotonic()
             if wait_time > 0 and stop_event.wait(wait_time):
                 break
+
             self._set(1.0)
-            if stop_event.wait(0.22):
+            if stop_event.wait(0.12):
                 break
             self._set(0.0)
-            next_beat += 1.0
+
+            progress = min(1.0, (time.monotonic() - started) / seconds)
+            interval = 0.9 - (0.72 * (progress ** 1.5))
+            next_beat += max(0.18, interval)
 
     def _blink_count(self, stop_event, count, on_time, off_time):
         for _ in range(count):
