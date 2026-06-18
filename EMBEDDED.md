@@ -51,7 +51,7 @@ The status LED does not need a special hardware PWM pin. `gpiozero.PWMLED` uses 
 
 Current LED behaviors:
 
-- ready: two short, dim beacons followed by four seconds off
+- ready: two quick, dim beacons followed by three seconds off
 - camera startup and warmup: faster 1.8-second breathing cycle
 - capture countdown: short flashes that accelerate toward the capture moment
 - capture moment: 1-second solid light triggered when camera capture starts
