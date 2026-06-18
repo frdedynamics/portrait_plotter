@@ -1,42 +1,36 @@
+from pathlib import Path
+
 import cv2
 import numpy as np
 
 
-def render_hvlrobotics_signature_mask():
-    text = "HVLRobotics"
-    font = cv2.FONT_HERSHEY_SCRIPT_COMPLEX
-    font_scale = 3.0
-    thickness = 3
-    padding = 24
+SIGNATURE_SOURCE = Path(__file__).with_name("signature_source.png")
 
-    (text_width, text_height), baseline = cv2.getTextSize(
-        text,
-        font,
-        font_scale,
-        thickness,
-    )
-    mask = np.zeros(
-        (text_height + baseline + (padding * 2), text_width + (padding * 2)),
-        dtype=np.uint8,
-    )
-    origin = (padding, padding + text_height)
-    cv2.putText(
-        mask,
-        text,
-        origin,
-        font,
-        font_scale,
-        255,
-        thickness,
-        lineType=cv2.LINE_AA,
-    )
-    flourish = np.array([
-        [
-            (padding + int(text_width * 0.18), origin[1] + baseline + 2),
-            (padding + int(text_width * 0.48), origin[1] + baseline + 6),
-            (padding + int(text_width * 0.78), origin[1] + baseline + 3),
-            (padding + int(text_width * 0.98), origin[1] + baseline - 4),
-        ]
-    ], dtype=np.int32)
-    cv2.polylines(mask, flourish, False, 255, thickness=2, lineType=cv2.LINE_AA)
-    return mask > 64
+
+def render_hvlrobotics_signature_mask():
+    image = cv2.imread(str(SIGNATURE_SOURCE), cv2.IMREAD_UNCHANGED)
+    if image is None:
+        raise RuntimeError(f"Signature source image not found: {SIGNATURE_SOURCE}")
+
+    if image.ndim == 3 and image.shape[2] == 4:
+        color = image[:, :, :3].astype(np.float32)
+        alpha = image[:, :, 3:4].astype(np.float32) / 255.0
+        image = (color * alpha) + (255.0 * (1.0 - alpha))
+        image = image.astype(np.uint8)
+
+    if image.ndim == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image
+
+    mask = gray < 160
+    rows, columns = np.where(mask)
+    if not len(rows):
+        raise RuntimeError(f"Signature source contains no dark strokes: {SIGNATURE_SOURCE}")
+
+    padding = 4
+    top = max(0, int(rows.min()) - padding)
+    bottom = min(mask.shape[0], int(rows.max()) + padding + 1)
+    left = max(0, int(columns.min()) - padding)
+    right = min(mask.shape[1], int(columns.max()) + padding + 1)
+    return mask[top:bottom, left:right]
