@@ -18,6 +18,7 @@ DEFAULT_CONFIG = {
     "button_bounce_time": 0.2,
     "status_led_pin": None,
     "status_led_brightness": 0.35,
+    "status_led_idle_mode": "heartbeat",
     "capture_countdown_seconds": 3,
     "pipeline_args": [
         "output.gcode",
@@ -45,6 +46,7 @@ def load_config(path):
 def validate_config(config):
     button_pin = config.get("button_pin")
     status_led_pin = config.get("status_led_pin")
+    status_led_idle_mode = config.get("status_led_idle_mode", "heartbeat")
     try:
         status_led_brightness = float(config.get("status_led_brightness", 0.35))
     except (TypeError, ValueError) as exc:
@@ -57,6 +59,10 @@ def validate_config(config):
         )
     if not 0.0 <= status_led_brightness <= 1.0:
         raise RuntimeError("status_led_brightness must be between 0.0 and 1.0.")
+    if status_led_idle_mode not in {"heartbeat", "dim_wink"}:
+        raise RuntimeError(
+            "status_led_idle_mode must be either 'heartbeat' or 'dim_wink'."
+        )
 
 
 class ButtonPipelineRunner:
@@ -67,6 +73,7 @@ class ButtonPipelineRunner:
         self.status_led = StatusLed(
             config.get("status_led_pin"),
             brightness=config.get("status_led_brightness", 0.35),
+            idle_mode=config.get("status_led_idle_mode", "heartbeat"),
         )
         self.status_led.ready()
 

@@ -4,9 +4,10 @@ import time
 
 
 class StatusLed:
-    def __init__(self, pin=None, brightness=0.35):
+    def __init__(self, pin=None, brightness=0.35, idle_mode="heartbeat"):
         self.pin = pin
         self.brightness = max(0.0, min(1.0, float(brightness)))
+        self.idle_mode = idle_mode
         self.led = None
         self._stop_event = threading.Event()
         self._thread = None
@@ -62,7 +63,10 @@ class StatusLed:
             self._set(value)
 
     def ready(self):
-        self._start_pattern(self._ready_beacon)
+        if self.idle_mode == "dim_wink":
+            self._start_pattern(self._ready_dim_wink)
+        else:
+            self._start_pattern(self._ready_heartbeat)
 
     def running(self):
         self._start_pattern(
@@ -118,7 +122,7 @@ class StatusLed:
             if stop_event.wait(0.01):
                 break
 
-    def _ready_beacon(self, stop_event):
+    def _ready_heartbeat(self, stop_event):
         while not stop_event.is_set():
             self._set(0.5)
             if stop_event.wait(0.07):
@@ -131,6 +135,15 @@ class StatusLed:
                 break
             self._set(0.0)
             if stop_event.wait(2.5):
+                break
+
+    def _ready_dim_wink(self, stop_event):
+        while not stop_event.is_set():
+            self._set(0.12)
+            if stop_event.wait(2.5):
+                break
+            self._set(1.0)
+            if stop_event.wait(0.1):
                 break
 
     def _countdown_pattern(self, stop_event, seconds):

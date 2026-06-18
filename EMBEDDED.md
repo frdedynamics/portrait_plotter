@@ -51,7 +51,7 @@ The status LED does not need a special hardware PWM pin. `gpiozero.PWMLED` uses 
 
 Current LED behaviors:
 
-- ready: asymmetric heartbeat with a short medium pulse, a longer bright pulse, then 2.5 seconds off
+- ready: selectable asymmetric heartbeat or dim light with a periodic bright wink
 - camera startup and warmup: faster 1.8-second breathing cycle
 - capture countdown: short flashes that accelerate toward the capture moment
 - capture moment: 1-second solid light triggered when camera capture starts
@@ -63,13 +63,25 @@ Current LED behaviors:
 
 Capture-only tests skip the three-blink success pattern and return directly to ready breathing. Otherwise, the short test finishes so quickly after capture that the success indication can be mistaken for a processing pattern.
 
-Set the maximum LED brightness with `status_led_brightness` in `embedded_config.json`. The accepted range is `0.0` to `1.0`; the default is `0.35`. Every LED state is scaled by this value. The ready beacon uses 35% of the configured maximum, while processing breathing uses the wider 8% to 100% range.
+Set the maximum LED brightness with `status_led_brightness` in `embedded_config.json`. The accepted range is `0.0` to `1.0`; the default is `0.35`. Every LED state is scaled by this value. Processing breathing uses 8% to 100% of the configured maximum.
 
 ```json
 {
   "status_led_pin": 27,
-  "status_led_brightness": 0.35
+  "status_led_brightness": 0.35,
+  "status_led_idle_mode": "heartbeat"
 }
+```
+
+Available idle modes:
+
+- `heartbeat`: 70 ms medium pulse, 100 ms gap, 220 ms bright pulse, then 2.5 seconds off
+- `dim_wink`: steady at 12% of configured brightness, with a 100 ms bright wink every 2.5 seconds
+
+To test the dim light and wink:
+
+```json
+"status_led_idle_mode": "dim_wink"
 ```
 
 The service logs timing measurements for each capture:
@@ -214,6 +226,7 @@ Edit:
 - `serial-port`
 - optional `status_led_pin`
 - `status_led_brightness`
+- `status_led_idle_mode`
 - `capture_countdown_seconds`
 
 Example key part:
@@ -223,6 +236,7 @@ Example key part:
   "button_pin": 17,
   "status_led_pin": 27,
   "status_led_brightness": 0.35,
+  "status_led_idle_mode": "heartbeat",
   "capture_countdown_seconds": 3,
   "pipeline_args": [
     "output.gcode",
