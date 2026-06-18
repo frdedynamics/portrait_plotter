@@ -1,6 +1,8 @@
 import argparse
 import base64
+import json
 import os
+import time
 from contextlib import ExitStack
 from pathlib import Path
 
@@ -9,6 +11,21 @@ from picamera_capture import capture_picamera_image
 from preprocess_portrait import parse_rgb, parse_size, preprocess_portrait
 from serial_gcode_sender import stream_gcode
 from webcam_capture import capture_webcam_image
+
+
+EVENT_PREFIX = "PORTRAIT_PLOTTER_EVENT "
+
+
+def emit_pipeline_event(enabled, event, **details):
+    if not enabled:
+        return
+
+    payload = {
+        "event": event,
+        "monotonic": time.monotonic(),
+        **details,
+    }
+    print(f"{EVENT_PREFIX}{json.dumps(payload, separators=(',', ':'))}", flush=True)
 
 
 DEFAULT_LINE_DRAWING_PROMPT = """
@@ -127,9 +144,19 @@ def run_pipeline(args):
             height=args.picamera_height,
             warmup_seconds=args.picamera_warmup_seconds,
             camera_num=args.picamera_num,
+            capture_countdown_seconds=args.capture_countdown_seconds,
+            event_callback=lambda event, **details: emit_pipeline_event(
+                args.emit_events,
+                event,
+                **details,
+            ),
         )
     elif photo_path is None and not args.skip_generation:
         raise ValueError("Provide a photo path or use --capture-webcam/--capture-picamera.")
+
+    if args.capture_only:
+        print(f"Capture-only mode finished: {photo_path}")
+        return
 
     line_drawing_path = Path(args.line_drawing)
 
@@ -222,6 +249,7 @@ def build_parser():
     parser.add_argument("gcode", nargs="?", help="Output G-code file")
     parser.add_argument("--capture-webcam", action="store_true", help="Capture the input photo from a webcam")
     parser.add_argument("--capture-picamera", action="store_true", help="Capture the input photo from a Raspberry Pi camera")
+    parser.add_argument("--capture-only", action="store_true", help="Save the captured photo without generating a drawing or G-code")
     parser.add_argument("--captured-photo", default="captured_photo.jpg", help="Intermediate webcam capture path")
     parser.add_argument("--camera-index", type=int, default=0, help="OpenCV webcam index")
     parser.add_argument("--camera-backend", choices=["any", "dshow", "msmf", "v4l2"], default=None, help="Optional OpenCV camera backend")
@@ -233,6 +261,8 @@ def build_parser():
     parser.add_argument("--picamera-height", type=int, default=1440, help="Requested Pi camera still height")
     parser.add_argument("--picamera-warmup-seconds", type=float, default=2.0, help="Seconds to let Pi camera exposure settle")
     parser.add_argument("--picamera-num", type=int, default=0, help="Picamera2 camera number")
+    parser.add_argument("--capture-countdown-seconds", type=float, default=0.0, help=argparse.SUPPRESS)
+    parser.add_argument("--emit-events", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--style-reference", help="Optional style/context reference image")
     parser.add_argument("--preprocessed-photo", default="preprocessed_photo.png", help="Intermediate preprocessed portrait image")
     parser.add_argument("--skip-preprocess", action="store_true", help="Send the original photo directly to the image model")
@@ -254,7 +284,7 @@ def build_parser():
     parser.add_argument("--prompt", help="Override the default line drawing prompt")
     parser.add_argument("--prompt-file", help="Read the line drawing prompt from a text file")
 
-    parser.add_argument("--width-mm", type=float, required=True, help="Output drawing width in millimeters")
+    parser.add_argument("--width-mm", type=float, default=None, help="Output drawing width in millimeters; required unless using --capture-only")
     parser.add_argument("--height-mm", type=float, default=None, help="Output drawing height in millimeters")
     parser.add_argument("--lift-height", type=float, default=5.0, help="Z height for travel moves")
     parser.add_argument("--pen-down-height", type=float, default=0.0, help="Z height while drawing")
@@ -294,15 +324,21 @@ def main():
         parser.error(f"unrecognized arguments: {' '.join(unknown)}")
 
     try:
-        if args.gcode is None:
+        if args.capture_only:
+            if not (args.capture_webcam or args.capture_picamera):
+                parser.error("--capture-only requires --capture-webcam or --capture-picamera.")
+        elif args.gcode is None:
             if args.capture_webcam or args.capture_picamera or args.skip_generation:
                 args.gcode = args.photo
                 args.photo = None
             else:
                 parser.error("photo and gcode are required unless using --capture-webcam, --capture-picamera, or --skip-generation.")
 
-        if args.gcode is None:
+        if not args.capture_only and args.gcode is None:
             parser.error("gcode output path is required.")
+
+        if not args.capture_only and args.width_mm is None:
+            parser.error("--width-mm is required unless using --capture-only.")
 
         if args.capture_webcam and args.capture_picamera:
             parser.error("Use only one of --capture-webcam or --capture-picamera.")

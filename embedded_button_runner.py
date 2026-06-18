@@ -6,13 +6,20 @@ import threading
 import time
 from pathlib import Path
 
+from status_led import StatusLed
+
+
+EVENT_PREFIX = "PORTRAIT_PLOTTER_EVENT "
+
 
 DEFAULT_CONFIG = {
     "button_pin": 17,
     "button_pull_up": True,
     "button_bounce_time": 0.2,
     "status_led_pin": None,
-    "error_led_pin": None,
+    "status_led_brightness": 0.35,
+    "status_led_idle_mode": "heartbeat",
+    "capture_countdown_seconds": 3,
     "pipeline_args": [
         "output.gcode",
         "--capture-picamera",
@@ -36,35 +43,26 @@ def load_config(path):
     return merged
 
 
-class OptionalLed:
-    def __init__(self, pin):
-        self.led = None
-        if pin is None:
-            return
+def validate_config(config):
+    button_pin = config.get("button_pin")
+    status_led_pin = config.get("status_led_pin")
+    status_led_idle_mode = config.get("status_led_idle_mode", "heartbeat")
+    try:
+        status_led_brightness = float(config.get("status_led_brightness", 0.35))
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("status_led_brightness must be a number between 0.0 and 1.0.") from exc
 
-        try:
-            from gpiozero import LED
-        except ImportError as exc:
-            raise RuntimeError("Missing gpiozero. Install with `python -m pip install gpiozero`.") from exc
-
-        self.led = LED(pin)
-
-    def on(self):
-        if self.led:
-            self.led.on()
-
-    def off(self):
-        if self.led:
-            self.led.off()
-
-    def blink_error(self, count=3):
-        if not self.led:
-            return
-        for _ in range(count):
-            self.led.on()
-            time.sleep(0.15)
-            self.led.off()
-            time.sleep(0.15)
+    if status_led_pin is not None and status_led_pin == button_pin:
+        raise RuntimeError(
+            f"button_pin and status_led_pin are both GPIO{button_pin}. "
+            "Use different GPIO pins, or set status_led_pin to null."
+        )
+    if not 0.0 <= status_led_brightness <= 1.0:
+        raise RuntimeError("status_led_brightness must be between 0.0 and 1.0.")
+    if status_led_idle_mode not in {"heartbeat", "dim_wink"}:
+        raise RuntimeError(
+            "status_led_idle_mode must be either 'heartbeat' or 'dim_wink'."
+        )
 
 
 class ButtonPipelineRunner:
@@ -72,33 +70,93 @@ class ButtonPipelineRunner:
         self.config = config
         self.lock = threading.Lock()
         self.busy = False
-        self.status_led = OptionalLed(config.get("status_led_pin"))
-        self.error_led = OptionalLed(config.get("error_led_pin"))
+        self.status_led = StatusLed(
+            config.get("status_led_pin"),
+            brightness=config.get("status_led_brightness", 0.35),
+            idle_mode=config.get("status_led_idle_mode", "heartbeat"),
+        )
+        self.status_led.ready()
 
     def run_pipeline(self):
+        button_time = time.monotonic()
         if not self.lock.acquire(blocking=False):
             print("Pipeline is already running; ignoring button press.")
+            self.status_led.busy_press()
+            self.status_led.running()
             return
 
         self.busy = True
-        self.status_led.on()
         try:
+            countdown_seconds = float(self.config.get("capture_countdown_seconds", 0))
+            self.status_led.running()
+
             command = [
                 sys.executable,
                 str(Path(__file__).with_name("plotter_pipeline.py")),
                 *self.config["pipeline_args"],
+                "--emit-events",
+                "--capture-countdown-seconds",
+                str(countdown_seconds),
             ]
             print("Running:")
             print(" ".join(command))
-            subprocess.run(command, cwd=Path(__file__).parent, check=True)
+            process = subprocess.Popen(
+                command,
+                cwd=Path(__file__).parent,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            for line in process.stdout:
+                line = line.rstrip()
+                if not self._handle_pipeline_event(line, button_time):
+                    print(line)
+
+            return_code = process.wait()
+            if return_code:
+                raise subprocess.CalledProcessError(return_code, command)
+
             print("Pipeline finished.")
+            if "--capture-only" not in self.config["pipeline_args"]:
+                self.status_led.success()
         except subprocess.CalledProcessError as exc:
             print(f"Pipeline failed with exit code {exc.returncode}.", file=sys.stderr)
-            self.error_led.blink_error()
+            self.status_led.error()
         finally:
-            self.status_led.off()
+            self.status_led.ready()
             self.busy = False
             self.lock.release()
+
+    def _handle_pipeline_event(self, line, button_time):
+        if not line.startswith(EVENT_PREFIX):
+            return False
+
+        try:
+            event_data = json.loads(line[len(EVENT_PREFIX):])
+            event = event_data["event"]
+            event_time = float(event_data["monotonic"])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            print(f"Invalid pipeline event: {line}", file=sys.stderr)
+            return True
+
+        since_button = event_time - button_time
+        if event == "capture_countdown":
+            seconds = float(event_data.get("seconds", 0))
+            print(f"Camera ready after {since_button:.3f}s; capture in {seconds:.1f}s.")
+            self.status_led.start_countdown(seconds)
+        elif event == "capture_start":
+            led_time = self.status_led.capture_flash()
+            message = f"Capture started {since_button:.3f}s after button press."
+            if led_time is not None:
+                indication_offset_ms = (led_time - event_time) * 1000.0
+                message += f" LED indication offset {indication_offset_ms:+.1f}ms."
+            print(message)
+            self.status_led.running()
+        elif event == "capture_complete":
+            print(f"Capture completed {since_button:.3f}s after button press.")
+
+        return True
 
     def run_pipeline_background(self):
         thread = threading.Thread(target=self.run_pipeline, daemon=True)
@@ -147,8 +205,9 @@ def main():
 
     try:
         config = load_config(config_path)
-        runner = ButtonPipelineRunner(config)
+        validate_config(config)
         if args.once:
+            runner = ButtonPipelineRunner(config)
             runner.run_pipeline()
         else:
             run_button_loop(config)

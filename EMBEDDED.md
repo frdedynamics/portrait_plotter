@@ -45,12 +45,75 @@ Status LED:
 - `GPIO27` / physical pin `13` -> resistor, for example 330 ohm -> LED anode
 - LED cathode -> `GND`
 
-Optional error LED:
+The status LED is optional. Set `status_led_pin` to `null` if not used.
 
-- `GPIO22` / physical pin `15` -> resistor -> LED anode
-- LED cathode -> `GND`
+The status LED does not need a special hardware PWM pin. `gpiozero.PWMLED` uses software PWM, so a normal free GPIO is fine. Do not use the same GPIO for the button and LED.
 
-The LEDs are optional. Set their config values to `null` if not used.
+Current LED behaviors:
+
+- ready: selectable asymmetric heartbeat or dim light with a periodic bright wink
+- camera startup and warmup: faster 1.8-second breathing cycle
+- capture countdown: short flashes that accelerate toward the capture moment
+- capture moment: 1-second solid light triggered when camera capture starts
+- capture-to-processing transition: 0.75-second fully dark pause
+- pipeline running: faster 1.8-second breathing cycle
+- success: three slow blinks, then the sparse ready beacon
+- error: fast blinking, then the sparse ready beacon
+- button pressed while busy: two quick blinks
+
+Capture-only tests skip the three-blink success pattern and return directly to ready breathing. Otherwise, the short test finishes so quickly after capture that the success indication can be mistaken for a processing pattern.
+
+Set the maximum LED brightness with `status_led_brightness` in `embedded_config.json`. The accepted range is `0.0` to `1.0`; the default is `0.35`. Every LED state is scaled by this value. Processing breathing uses 8% to 100% of the configured maximum.
+
+```json
+{
+  "status_led_pin": 27,
+  "status_led_brightness": 0.35,
+  "status_led_idle_mode": "heartbeat"
+}
+```
+
+Available idle modes:
+
+- `heartbeat`: 70 ms medium pulse, 100 ms gap, 220 ms bright pulse, then 2.5 seconds off
+- `dim_wink`: steady at 12% of configured brightness, with a 100 ms bright wink every 2.5 seconds
+
+To test the dim light and wink:
+
+```json
+"status_led_idle_mode": "dim_wink"
+```
+
+The service logs timing measurements for each capture:
+
+```text
+Camera ready after 3.812s; capture in 3.0s.
+Capture started 6.813s after button press; LED indication offset +2.4ms.
+Capture completed 6.941s after button press.
+```
+
+`LED indication offset` is the time from the camera process announcing `capture_start` to the service starting the LED pulse. A small positive value is expected because the event crosses a subprocess pipe. This measures software timing around the capture call; it is not a direct sensor exposure timestamp.
+
+### Camera And LED Test Only
+
+To test the button, camera, countdown, capture indication, and saved photo without calling OpenAI, generating G-code, or connecting to the printer, use these `pipeline_args` in `embedded_config.json`:
+
+```json
+"pipeline_args": [
+  "--capture-picamera",
+  "--capture-only",
+  "--captured-photo", "captured_photo.jpg",
+  "--picamera-width", "2560",
+  "--picamera-height", "1440",
+  "--picamera-warmup-seconds", "2"
+]
+```
+
+The runner supplies `capture_countdown_seconds` from the top level of the embedded config. Restart the service after changing the file:
+
+```bash
+sudo systemctl restart portrait-plotter.service
+```
 
 ## Raspberry Pi Setup
 
@@ -161,7 +224,10 @@ Edit:
 - `style_reference.png`
 - `width-mm` / `height-mm`
 - `serial-port`
-- optional LED pins
+- optional `status_led_pin`
+- `status_led_brightness`
+- `status_led_idle_mode`
+- `capture_countdown_seconds`
 
 Example key part:
 
@@ -169,7 +235,9 @@ Example key part:
 {
   "button_pin": 17,
   "status_led_pin": 27,
-  "error_led_pin": 22,
+  "status_led_brightness": 0.35,
+  "status_led_idle_mode": "heartbeat",
+  "capture_countdown_seconds": 3,
   "pipeline_args": [
     "output.gcode",
     "--capture-picamera",
@@ -310,6 +378,44 @@ If you also want to remove the local API key environment file:
 
 ```bash
 sudo rm -r /etc/portrait-plotter
+```
+
+## Troubleshooting
+
+### GPIO Already In Use
+
+If the service log says:
+
+```text
+gpiozero.exc.GPIOPinInUse: pin GPIO25 is already in use by <gpiozero.PWMLED object ...>
+```
+
+that usually means the same GPIO was configured twice inside the plotter process. Check that `button_pin` and `status_led_pin` are different:
+
+```json
+{
+  "button_pin": 17,
+  "status_led_pin": 25
+}
+```
+
+Recommended wiring:
+
+- button: `GPIO17` / physical pin `11` to `GND`
+- status LED: `GPIO25` / physical pin `22` through a resistor to LED anode, LED cathode to `GND`
+
+If you are not using the LED, disable it:
+
+```json
+{
+  "status_led_pin": null
+}
+```
+
+If the log says the pin is already used by another service, such as CODESYS, choose a different free GPIO or stop the service that owns that pin. After changing `embedded_config.json`, restart the plotter service:
+
+```bash
+sudo systemctl restart portrait-plotter.service
 ```
 
 ## Safety Checklist
