@@ -62,14 +62,7 @@ class StatusLed:
             self._set(value)
 
     def ready(self):
-        self._start_pattern(
-            lambda stop_event: self._breathe(
-                stop_event,
-                period=8.0,
-                minimum=0.04,
-                maximum=0.22,
-            )
-        )
+        self._start_pattern(self._ready_beacon)
 
     def running(self):
         self._start_pattern(
@@ -123,6 +116,15 @@ class StatusLed:
             wave = (1.0 - math.cos(phase * 2.0 * math.pi)) / 2.0
             self._set(minimum + ((maximum - minimum) * wave))
             if stop_event.wait(0.01):
+                break
+
+    def _ready_beacon(self, stop_event):
+        while not stop_event.is_set():
+            self._set(0.35)
+            if stop_event.wait(0.12):
+                break
+            self._set(0.0)
+            if stop_event.wait(4.0):
                 break
 
     def _countdown_pattern(self, stop_event, seconds):
