@@ -120,10 +120,13 @@ class StatusLed:
 
     def _ready_beacon(self, stop_event):
         while not stop_event.is_set():
-            self._set(0.35)
-            if stop_event.wait(0.12):
-                break
-            self._set(0.0)
+            for _ in range(2):
+                self._set(0.35)
+                if stop_event.wait(0.12):
+                    return
+                self._set(0.0)
+                if stop_event.wait(0.14):
+                    return
             if stop_event.wait(4.0):
                 break
 
