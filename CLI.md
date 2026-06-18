@@ -14,7 +14,7 @@ Full photo/webcam to G-code pipeline
 
 ```text
 usage: plotter_pipeline.py [-h] [--capture-webcam] [--capture-picamera]
-                           [--captured-photo CAPTURED_PHOTO]
+                           [--capture-only] [--captured-photo CAPTURED_PHOTO]
                            [--camera-index CAMERA_INDEX]
                            [--camera-backend {any,dshow,msmf,v4l2}]
                            [--camera-width CAMERA_WIDTH]
@@ -42,7 +42,7 @@ usage: plotter_pipeline.py [-h] [--capture-webcam] [--capture-picamera]
                            [--model MODEL] [--image-size IMAGE_SIZE]
                            [--quality {low,medium,high,auto}]
                            [--prompt PROMPT] [--prompt-file PROMPT_FILE]
-                           --width-mm WIDTH_MM [--height-mm HEIGHT_MM]
+                           [--width-mm WIDTH_MM] [--height-mm HEIGHT_MM]
                            [--lift-height LIFT_HEIGHT]
                            [--pen-down-height PEN_DOWN_HEIGHT] [--speed SPEED]
                            [--travel-speed TRAVEL_SPEED]
@@ -70,6 +70,8 @@ options:
   -h, --help            show this help message and exit
   --capture-webcam      Capture the input photo from a webcam
   --capture-picamera    Capture the input photo from a Raspberry Pi camera
+  --capture-only        Save the captured photo without generating a drawing
+                        or G-code
   --captured-photo CAPTURED_PHOTO
                         Intermediate webcam capture path
   --camera-index CAMERA_INDEX
@@ -131,7 +133,8 @@ options:
   --prompt PROMPT       Override the default line drawing prompt
   --prompt-file PROMPT_FILE
                         Read the line drawing prompt from a text file
-  --width-mm WIDTH_MM   Output drawing width in millimeters
+  --width-mm WIDTH_MM   Output drawing width in millimeters; required unless
+                        using --capture-only
   --height-mm HEIGHT_MM
                         Output drawing height in millimeters
   --lift-height LIFT_HEIGHT

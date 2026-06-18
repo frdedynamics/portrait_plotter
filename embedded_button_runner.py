@@ -128,13 +128,12 @@ class ButtonPipelineRunner:
             print(f"Camera ready after {since_button:.3f}s; capture in {seconds:.1f}s.")
             self.status_led.start_countdown(seconds)
         elif event == "capture_start":
-            led_time = time.monotonic()
-            indication_offset_ms = (led_time - event_time) * 1000.0
-            print(
-                f"Capture started {since_button:.3f}s after button press; "
-                f"LED indication offset {indication_offset_ms:+.1f}ms."
-            )
-            self.status_led.capture_flash()
+            led_time = self.status_led.capture_flash()
+            message = f"Capture started {since_button:.3f}s after button press."
+            if led_time is not None:
+                indication_offset_ms = (led_time - event_time) * 1000.0
+                message += f" LED indication offset {indication_offset_ms:+.1f}ms."
+            print(message)
             self.status_led.running()
         elif event == "capture_complete":
             print(f"Capture completed {since_button:.3f}s after button press.")

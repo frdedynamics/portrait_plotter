@@ -70,6 +70,27 @@ Capture completed 6.941s after button press.
 
 `LED indication offset` is the time from the camera process announcing `capture_start` to the service starting the LED pulse. A small positive value is expected because the event crosses a subprocess pipe. This measures software timing around the capture call; it is not a direct sensor exposure timestamp.
 
+### Camera And LED Test Only
+
+To test the button, camera, countdown, capture indication, and saved photo without calling OpenAI, generating G-code, or connecting to the printer, use these `pipeline_args` in `embedded_config.json`:
+
+```json
+"pipeline_args": [
+  "--capture-picamera",
+  "--capture-only",
+  "--captured-photo", "captured_photo.jpg",
+  "--picamera-width", "2560",
+  "--picamera-height", "1440",
+  "--picamera-warmup-seconds", "2"
+]
+```
+
+The runner supplies `capture_countdown_seconds` from the top level of the embedded config. Restart the service after changing the file:
+
+```bash
+sudo systemctl restart portrait-plotter.service
+```
+
 ## Raspberry Pi Setup
 
 Use a current Raspberry Pi OS release. Camera Module 3 uses the modern libcamera/Picamera2 stack, so this project uses `picamera2`, not the old legacy `picamera` package.

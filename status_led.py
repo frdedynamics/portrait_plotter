@@ -75,7 +75,16 @@ class StatusLed:
         self._run_blocking_pattern(self._blink_count, count=2, on_time=0.08, off_time=0.08)
 
     def capture_flash(self):
-        self._run_blocking_pattern(self._blink_count, count=1, on_time=0.75, off_time=0.1)
+        if not self.led:
+            return None
+
+        self._stop_pattern()
+        started = time.monotonic()
+        self.led.on()
+        time.sleep(0.75)
+        self.led.off()
+        time.sleep(0.1)
+        return started
 
     def start_countdown(self, seconds):
         if not self.led or seconds <= 0:
