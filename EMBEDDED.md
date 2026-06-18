@@ -52,12 +52,23 @@ The status LED does not need a special hardware PWM pin. `gpiozero.PWMLED` uses 
 Current LED behaviors:
 
 - ready: slow breathing
-- capture countdown: blinks faster as capture approaches
-- capture moment: one long pulse
+- camera startup and warmup: repeating running pulse
+- capture countdown: starts after the camera is ready and blinks faster as capture approaches
+- capture moment: one long pulse triggered immediately when the camera capture starts
 - pipeline running: repeating pulse
 - success: three slow blinks, then ready breathing
 - error: fast blinking, then ready breathing
 - button pressed while busy: two quick blinks
+
+The service logs timing measurements for each capture:
+
+```text
+Camera ready after 3.812s; capture in 3.0s.
+Capture started 6.813s after button press; LED indication offset +2.4ms.
+Capture completed 6.941s after button press.
+```
+
+`LED indication offset` is the time from the camera process announcing `capture_start` to the service starting the LED pulse. A small positive value is expected because the event crosses a subprocess pipe. This measures software timing around the capture call; it is not a direct sensor exposure timestamp.
 
 ## Raspberry Pi Setup
 

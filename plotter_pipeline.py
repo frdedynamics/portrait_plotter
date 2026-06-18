@@ -1,6 +1,8 @@
 import argparse
 import base64
+import json
 import os
+import time
 from contextlib import ExitStack
 from pathlib import Path
 
@@ -9,6 +11,21 @@ from picamera_capture import capture_picamera_image
 from preprocess_portrait import parse_rgb, parse_size, preprocess_portrait
 from serial_gcode_sender import stream_gcode
 from webcam_capture import capture_webcam_image
+
+
+EVENT_PREFIX = "PORTRAIT_PLOTTER_EVENT "
+
+
+def emit_pipeline_event(enabled, event, **details):
+    if not enabled:
+        return
+
+    payload = {
+        "event": event,
+        "monotonic": time.monotonic(),
+        **details,
+    }
+    print(f"{EVENT_PREFIX}{json.dumps(payload, separators=(',', ':'))}", flush=True)
 
 
 DEFAULT_LINE_DRAWING_PROMPT = """
@@ -127,6 +144,12 @@ def run_pipeline(args):
             height=args.picamera_height,
             warmup_seconds=args.picamera_warmup_seconds,
             camera_num=args.picamera_num,
+            capture_countdown_seconds=args.capture_countdown_seconds,
+            event_callback=lambda event, **details: emit_pipeline_event(
+                args.emit_events,
+                event,
+                **details,
+            ),
         )
     elif photo_path is None and not args.skip_generation:
         raise ValueError("Provide a photo path or use --capture-webcam/--capture-picamera.")
@@ -233,6 +256,8 @@ def build_parser():
     parser.add_argument("--picamera-height", type=int, default=1440, help="Requested Pi camera still height")
     parser.add_argument("--picamera-warmup-seconds", type=float, default=2.0, help="Seconds to let Pi camera exposure settle")
     parser.add_argument("--picamera-num", type=int, default=0, help="Picamera2 camera number")
+    parser.add_argument("--capture-countdown-seconds", type=float, default=0.0, help=argparse.SUPPRESS)
+    parser.add_argument("--emit-events", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--style-reference", help="Optional style/context reference image")
     parser.add_argument("--preprocessed-photo", default="preprocessed_photo.png", help="Intermediate preprocessed portrait image")
     parser.add_argument("--skip-preprocess", action="store_true", help="Send the original photo directly to the image model")

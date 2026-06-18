@@ -3,9 +3,13 @@ import json
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 from status_led import StatusLed
+
+
+EVENT_PREFIX = "PORTRAIT_PLOTTER_EVENT "
 
 
 DEFAULT_CONFIG = {
@@ -57,6 +61,7 @@ class ButtonPipelineRunner:
         self.status_led.ready()
 
     def run_pipeline(self):
+        button_time = time.monotonic()
         if not self.lock.acquire(blocking=False):
             print("Pipeline is already running; ignoring button press.")
             self.status_led.busy_press()
@@ -66,18 +71,35 @@ class ButtonPipelineRunner:
         self.busy = True
         try:
             countdown_seconds = float(self.config.get("capture_countdown_seconds", 0))
-            self.status_led.countdown(countdown_seconds)
-            self.status_led.capture_flash()
             self.status_led.running()
 
             command = [
                 sys.executable,
                 str(Path(__file__).with_name("plotter_pipeline.py")),
                 *self.config["pipeline_args"],
+                "--emit-events",
+                "--capture-countdown-seconds",
+                str(countdown_seconds),
             ]
             print("Running:")
             print(" ".join(command))
-            subprocess.run(command, cwd=Path(__file__).parent, check=True)
+            process = subprocess.Popen(
+                command,
+                cwd=Path(__file__).parent,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            for line in process.stdout:
+                line = line.rstrip()
+                if not self._handle_pipeline_event(line, button_time):
+                    print(line)
+
+            return_code = process.wait()
+            if return_code:
+                raise subprocess.CalledProcessError(return_code, command)
+
             print("Pipeline finished.")
             self.status_led.success()
         except subprocess.CalledProcessError as exc:
@@ -87,6 +109,37 @@ class ButtonPipelineRunner:
             self.status_led.ready()
             self.busy = False
             self.lock.release()
+
+    def _handle_pipeline_event(self, line, button_time):
+        if not line.startswith(EVENT_PREFIX):
+            return False
+
+        try:
+            event_data = json.loads(line[len(EVENT_PREFIX):])
+            event = event_data["event"]
+            event_time = float(event_data["monotonic"])
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            print(f"Invalid pipeline event: {line}", file=sys.stderr)
+            return True
+
+        since_button = event_time - button_time
+        if event == "capture_countdown":
+            seconds = float(event_data.get("seconds", 0))
+            print(f"Camera ready after {since_button:.3f}s; capture in {seconds:.1f}s.")
+            self.status_led.start_countdown(seconds)
+        elif event == "capture_start":
+            led_time = time.monotonic()
+            indication_offset_ms = (led_time - event_time) * 1000.0
+            print(
+                f"Capture started {since_button:.3f}s after button press; "
+                f"LED indication offset {indication_offset_ms:+.1f}ms."
+            )
+            self.status_led.capture_flash()
+            self.status_led.running()
+        elif event == "capture_complete":
+            print(f"Capture completed {since_button:.3f}s after button press.")
+
+        return True
 
     def run_pipeline_background(self):
         thread = threading.Thread(target=self.run_pipeline, daemon=True)

@@ -9,6 +9,8 @@ def capture_picamera_image(
     height=1440,
     warmup_seconds=2.0,
     camera_num=0,
+    capture_countdown_seconds=0.0,
+    event_callback=None,
 ):
     try:
         from picamera2 import Picamera2
@@ -29,7 +31,17 @@ def capture_picamera_image(
         camera.configure(config)
         camera.start()
         time.sleep(warmup_seconds)
+
+        if capture_countdown_seconds > 0:
+            if event_callback:
+                event_callback("capture_countdown", seconds=capture_countdown_seconds)
+            time.sleep(capture_countdown_seconds)
+
+        if event_callback:
+            event_callback("capture_start")
         camera.capture_file(str(output_path))
+        if event_callback:
+            event_callback("capture_complete")
         return output_path
     finally:
         camera.stop()
