@@ -3,6 +3,7 @@
   "button_pull_up": true,
   "button_bounce_time": 0.2,
   "status_led_pin": 27,
+  "status_led_brightness": 0.35,
   "capture_countdown_seconds": 3,
   "pipeline_args": [
     "output.gcode",

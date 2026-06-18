@@ -17,6 +17,7 @@ DEFAULT_CONFIG = {
     "button_pull_up": True,
     "button_bounce_time": 0.2,
     "status_led_pin": None,
+    "status_led_brightness": 0.35,
     "capture_countdown_seconds": 3,
     "pipeline_args": [
         "output.gcode",
@@ -44,12 +45,18 @@ def load_config(path):
 def validate_config(config):
     button_pin = config.get("button_pin")
     status_led_pin = config.get("status_led_pin")
+    try:
+        status_led_brightness = float(config.get("status_led_brightness", 0.35))
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("status_led_brightness must be a number between 0.0 and 1.0.") from exc
 
     if status_led_pin is not None and status_led_pin == button_pin:
         raise RuntimeError(
             f"button_pin and status_led_pin are both GPIO{button_pin}. "
             "Use different GPIO pins, or set status_led_pin to null."
         )
+    if not 0.0 <= status_led_brightness <= 1.0:
+        raise RuntimeError("status_led_brightness must be between 0.0 and 1.0.")
 
 
 class ButtonPipelineRunner:
@@ -57,7 +64,10 @@ class ButtonPipelineRunner:
         self.config = config
         self.lock = threading.Lock()
         self.busy = False
-        self.status_led = StatusLed(config.get("status_led_pin"))
+        self.status_led = StatusLed(
+            config.get("status_led_pin"),
+            brightness=config.get("status_led_brightness", 0.35),
+        )
         self.status_led.ready()
 
     def run_pipeline(self):

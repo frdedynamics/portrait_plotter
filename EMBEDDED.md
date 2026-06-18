@@ -51,14 +51,24 @@ The status LED does not need a special hardware PWM pin. `gpiozero.PWMLED` uses 
 
 Current LED behaviors:
 
-- ready: slow breathing
-- camera startup and warmup: repeating running pulse
-- capture countdown: starts after the camera is ready and blinks faster as capture approaches
-- capture moment: one long pulse triggered immediately when the camera capture starts
-- pipeline running: repeating pulse
-- success: three slow blinks, then ready breathing
-- error: fast blinking, then ready breathing
+- ready: steady dim light
+- camera startup and warmup: slow double pulse
+- capture countdown: one short beat per second after the camera is ready
+- capture moment: 0.75-second solid light triggered when camera capture starts
+- capture-to-processing transition: 0.75-second fully dark pause
+- pipeline running: slow double pulse
+- success: three slow blinks, then steady dim ready light
+- error: fast blinking, then steady dim ready light
 - button pressed while busy: two quick blinks
+
+Set the maximum LED brightness with `status_led_brightness` in `embedded_config.json`. The accepted range is `0.0` to `1.0`; the default is `0.35`. Every LED state is scaled by this value, and the steady ready light uses 15% of the configured maximum.
+
+```json
+{
+  "status_led_pin": 27,
+  "status_led_brightness": 0.35
+}
+```
 
 The service logs timing measurements for each capture:
 
@@ -201,6 +211,7 @@ Edit:
 - `width-mm` / `height-mm`
 - `serial-port`
 - optional `status_led_pin`
+- `status_led_brightness`
 - `capture_countdown_seconds`
 
 Example key part:
@@ -209,6 +220,7 @@ Example key part:
 {
   "button_pin": 17,
   "status_led_pin": 27,
+  "status_led_brightness": 0.35,
   "capture_countdown_seconds": 3,
   "pipeline_args": [
     "output.gcode",

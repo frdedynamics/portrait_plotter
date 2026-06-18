@@ -3,8 +3,9 @@ import time
 
 
 class StatusLed:
-    def __init__(self, pin=None):
+    def __init__(self, pin=None, brightness=0.35):
         self.pin = pin
+        self.brightness = max(0.0, min(1.0, float(brightness)))
         self.led = None
         self._stop_event = threading.Event()
         self._thread = None
@@ -57,10 +58,10 @@ class StatusLed:
     def on(self, value=1.0):
         self._stop_pattern()
         if self.led:
-            self.led.value = value
+            self._set(value)
 
     def ready(self):
-        self._start_pattern(self._breathe_slow)
+        self.on(0.15)
 
     def running(self):
         self._start_pattern(self._pulse_running)
@@ -80,10 +81,10 @@ class StatusLed:
 
         self._stop_pattern()
         started = time.monotonic()
-        self.led.on()
+        self._set(1.0)
         time.sleep(0.75)
-        self.led.off()
-        time.sleep(0.1)
+        self._set(0.0)
+        time.sleep(0.75)
         return started
 
     def start_countdown(self, seconds):
@@ -94,77 +95,61 @@ class StatusLed:
             lambda stop_event: self._countdown_pattern(stop_event, seconds)
         )
 
-    def countdown(self, seconds):
-        if not self.led or seconds <= 0:
-            if seconds > 0:
-                time.sleep(seconds)
-            return
-
-        self._stop_pattern()
-        steps = max(1, int(seconds))
-        for index in range(steps):
-            remaining = steps - index
-            period = max(0.18, 0.55 - (index * 0.10))
-            print(f"Capture in {remaining}...")
-            end_time = time.monotonic() + 1.0
-            while time.monotonic() < end_time:
-                self.led.on()
-                time.sleep(period / 2.0)
-                self.led.off()
-                time.sleep(period / 2.0)
-
     def _run_blocking_pattern(self, func, **kwargs):
         if not self.led:
             return
         self._stop_pattern()
         func(self._stop_event, **kwargs)
 
-    def _breathe_slow(self, stop_event):
-        while not stop_event.is_set():
-            for value in list(range(0, 101, 4)) + list(range(100, -1, -4)):
-                if stop_event.is_set():
-                    break
-                self.led.value = value / 100.0
-                time.sleep(0.04)
-
     def _pulse_running(self, stop_event):
         while not stop_event.is_set():
-            self.led.value = 1.0
-            time.sleep(0.7)
-            if stop_event.is_set():
+            self._set(0.8)
+            if stop_event.wait(0.15):
                 break
-            self.led.value = 0.25
-            time.sleep(0.7)
+            self._set(0.0)
+            if stop_event.wait(0.12):
+                break
+            self._set(0.8)
+            if stop_event.wait(0.15):
+                break
+            self._set(0.0)
+            if stop_event.wait(1.5):
+                break
 
     def _countdown_pattern(self, stop_event, seconds):
         started = time.monotonic()
-        while not stop_event.is_set():
-            elapsed = time.monotonic() - started
-            if elapsed >= seconds:
+        next_beat = started
+        deadline = started + seconds
+        while next_beat < deadline and not stop_event.is_set():
+            wait_time = next_beat - time.monotonic()
+            if wait_time > 0 and stop_event.wait(wait_time):
                 break
-
-            progress = min(1.0, elapsed / seconds)
-            period = max(0.18, 0.55 - (progress * 0.37))
-            self.led.on()
-            if stop_event.wait(period / 2.0):
+            self._set(1.0)
+            if stop_event.wait(0.22):
                 break
-            self.led.off()
-            if stop_event.wait(period / 2.0):
-                break
+            self._set(0.0)
+            next_beat += 1.0
 
     def _blink_count(self, stop_event, count, on_time, off_time):
         for _ in range(count):
             if stop_event.is_set():
                 break
-            self.led.on()
-            time.sleep(on_time)
-            self.led.off()
-            time.sleep(off_time)
+            self._set(1.0)
+            if stop_event.wait(on_time):
+                break
+            self._set(0.0)
+            if stop_event.wait(off_time):
+                break
 
     def _blink_for_duration(self, stop_event, duration, on_time, off_time):
         deadline = time.monotonic() + duration
         while time.monotonic() < deadline and not stop_event.is_set():
-            self.led.on()
-            time.sleep(on_time)
-            self.led.off()
-            time.sleep(off_time)
+            self._set(1.0)
+            if stop_event.wait(on_time):
+                break
+            self._set(0.0)
+            if stop_event.wait(off_time):
+                break
+
+    def _set(self, value):
+        self.led.value = max(0.0, min(1.0, value)) * self.brightness
