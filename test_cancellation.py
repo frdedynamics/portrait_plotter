@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from embedded_button_runner import ButtonPipelineRunner
 from serial_gcode_sender import EMERGENCY_COMMANDS, emergency_stop_and_lift
+from status_led import StatusLed
 
 
 def runner_config():
@@ -73,6 +74,24 @@ class FakeSerial:
 
     def flush(self):
         self.flushed = True
+
+
+class FakeLed:
+    def __init__(self):
+        self.value = 1.0
+
+    def off(self):
+        self.value = 0.0
+
+
+class LedStateTests(unittest.TestCase):
+    def test_preparing_capture_turns_led_off(self):
+        status_led = StatusLed()
+        status_led.led = FakeLed()
+
+        status_led.preparing_capture()
+
+        self.assertEqual(status_led.led.value, 0.0)
 
 
 class PrinterCancellationTests(unittest.TestCase):
