@@ -1,7 +1,9 @@
 {
   "button_pin": 17,
   "button_pull_up": true,
-  "button_bounce_time": 0.2,
+  "button_bounce_time": 0.05,
+  "cancel_hold_seconds": 2.0,
+  "cancel_timeout_seconds": 5.0,
   "status_led_pin": 27,
   "status_led_brightness": 0.35,
   "status_led_idle_mode": "heartbeat",
