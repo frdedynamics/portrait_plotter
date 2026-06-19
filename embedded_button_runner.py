@@ -108,7 +108,10 @@ class ButtonPipelineRunner:
         self.cancel_requested.clear()
         try:
             countdown_seconds = float(self.config.get("capture_countdown_seconds", 0))
-            self.status_led.running()
+            if "--capture-picamera" in self.config["pipeline_args"]:
+                self.status_led.preparing_capture()
+            else:
+                self.status_led.running()
 
             command = [
                 sys.executable,

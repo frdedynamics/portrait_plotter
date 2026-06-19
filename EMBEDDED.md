@@ -52,7 +52,7 @@ The status LED does not need a special hardware PWM pin. `gpiozero.PWMLED` uses 
 Current LED behaviors:
 
 - ready: selectable asymmetric heartbeat or dim light with a periodic bright wink
-- camera startup and warmup: faster 1.8-second breathing cycle
+- camera startup and warmup before countdown: LED off
 - capture countdown: short flashes that accelerate toward the capture moment
 - capture moment: 1-second solid light triggered when camera capture starts
 - capture-to-processing transition: 0.75-second fully dark pause
@@ -62,6 +62,8 @@ Current LED behaviors:
 - button pressed while busy: two quick blinks
 - cancellation requested: three rapid blinks
 - cancellation completed: two slower confirmation blinks, then ready
+
+For Pi-camera jobs, releasing the start button stops the idle pattern and turns the LED fully off while the camera initializes and settles. The first countdown flash is therefore visually distinct. Non-camera jobs use processing breathing immediately because they have no capture countdown.
 
 Capture-only tests skip the three-blink success pattern and return directly to ready breathing. Otherwise, the short test finishes so quickly after capture that the success indication can be mistaken for a processing pattern.
 

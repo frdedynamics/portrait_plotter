@@ -78,6 +78,9 @@ class StatusLed:
             )
         )
 
+    def preparing_capture(self):
+        self.off()
+
     def success(self):
         self._run_blocking_pattern(self._blink_count, count=3, on_time=0.35, off_time=0.25)
 
