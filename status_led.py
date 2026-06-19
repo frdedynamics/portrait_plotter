@@ -87,6 +87,19 @@ class StatusLed:
     def busy_press(self):
         self._run_blocking_pattern(self._blink_count, count=2, on_time=0.08, off_time=0.08)
 
+    def cancelling(self):
+        self._start_pattern(
+            lambda stop_event: self._blink_count(
+                stop_event,
+                count=3,
+                on_time=0.08,
+                off_time=0.08,
+            )
+        )
+
+    def cancelled(self):
+        self._run_blocking_pattern(self._blink_count, count=2, on_time=0.3, off_time=0.2)
+
     def capture_flash(self):
         if not self.led:
             return None

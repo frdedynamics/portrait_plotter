@@ -2,6 +2,7 @@ import argparse
 import base64
 import json
 import os
+import sys
 import time
 from contextlib import ExitStack
 from pathlib import Path
@@ -356,6 +357,9 @@ def main():
             parser.error("Use only one of --capture-webcam or --capture-picamera.")
 
         run_pipeline(args)
+    except KeyboardInterrupt:
+        print("Pipeline interrupted.", file=sys.stderr)
+        raise SystemExit(130)
     except (RuntimeError, ValueError) as exc:
         parser.error(str(exc))
 

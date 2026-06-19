@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 OK_RE = re.compile(r"\bok\b", re.IGNORECASE)
+EMERGENCY_COMMANDS = ("M410", "G91", "G0 Z5 F1500", "G90")
 
 
 def strip_gcode_line(line):
@@ -53,6 +54,17 @@ def wait_for_ok(serial_port, timeout):
     raise RuntimeError(f"Timed out waiting for printer ok.{detail}")
 
 
+def emergency_stop_and_lift(serial_port):
+    print("Sending printer quickstop and emergency pen lift.")
+    try:
+        serial_port.reset_output_buffer()
+        for command in EMERGENCY_COMMANDS:
+            serial_port.write((command + "\n").encode("ascii"))
+        serial_port.flush()
+    except Exception as exc:
+        print(f"Warning: printer emergency commands failed: {exc}")
+
+
 def stream_gcode(
     gcode_path,
     port,
@@ -82,24 +94,28 @@ def stream_gcode(
 
     print(f"Opening serial port {port} at {baud} baud")
     with serial.Serial(port, baudrate=baud, timeout=1, write_timeout=10) as serial_port:
-        time.sleep(connect_delay)
-        serial_port.reset_input_buffer()
-        serial_port.reset_output_buffer()
+        try:
+            time.sleep(connect_delay)
+            serial_port.reset_input_buffer()
+            serial_port.reset_output_buffer()
 
-        # Marlin accepts a temperature query as a harmless readiness probe.
-        serial_port.write(b"M105\n")
-        serial_port.flush()
-        wait_for_ok(serial_port, timeout=response_timeout)
-
-        total = len(commands)
-        for index, command in enumerate(commands, start=1):
-            print(f"> {command}")
-            serial_port.write((command + "\n").encode("ascii", errors="ignore"))
+            # Marlin accepts a temperature query as a harmless readiness probe.
+            serial_port.write(b"M105\n")
             serial_port.flush()
             wait_for_ok(serial_port, timeout=response_timeout)
 
-            if index == 1 or index == total or index % 50 == 0:
-                print(f"Progress: {index}/{total}")
+            total = len(commands)
+            for index, command in enumerate(commands, start=1):
+                print(f"> {command}")
+                serial_port.write((command + "\n").encode("ascii", errors="ignore"))
+                serial_port.flush()
+                wait_for_ok(serial_port, timeout=response_timeout)
+
+                if index == 1 or index == total or index % 50 == 0:
+                    print(f"Progress: {index}/{total}")
+        except KeyboardInterrupt:
+            emergency_stop_and_lift(serial_port)
+            raise
 
     print("Finished streaming G-code.")
 

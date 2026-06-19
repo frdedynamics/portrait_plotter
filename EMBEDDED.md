@@ -60,6 +60,8 @@ Current LED behaviors:
 - success: three slow blinks, then the sparse ready beacon
 - error: fast blinking, then the sparse ready beacon
 - button pressed while busy: two quick blinks
+- cancellation requested: three rapid blinks
+- cancellation completed: two slower confirmation blinks, then ready
 
 Capture-only tests skip the three-blink success pattern and return directly to ready breathing. Otherwise, the short test finishes so quickly after capture that the success indication can be mistaken for a processing pattern.
 
@@ -76,7 +78,7 @@ Set the maximum LED brightness with `status_led_brightness` in `embedded_config.
 Available idle modes:
 
 - `heartbeat`: 70 ms medium pulse, 100 ms gap, 220 ms bright pulse, then 2.5 seconds off
-- `dim_wink`: steady at 12% of configured brightness, with a 100 ms bright wink every 2.5 seconds
+- `dim_wink`: steady at 25% of configured brightness, with a 100 ms bright wink every 2.5 seconds
 
 To test the dim light and wink:
 
@@ -229,12 +231,18 @@ Edit:
 - `status_led_brightness`
 - `status_led_idle_mode`
 - `capture_countdown_seconds`
+- `button_bounce_time`
+- `cancel_hold_seconds`
+- `cancel_timeout_seconds`
 
 Example key part:
 
 ```json
 {
   "button_pin": 17,
+  "button_bounce_time": 0.05,
+  "cancel_hold_seconds": 2.0,
+  "cancel_timeout_seconds": 5.0,
   "status_led_pin": 27,
   "status_led_brightness": 0.35,
   "status_led_idle_mode": "heartbeat",
@@ -285,7 +293,18 @@ source .venv/bin/activate
 python embedded_button_runner.py --config embedded_config.json
 ```
 
-Press the button once. While a job is running, further button presses are ignored.
+Button gestures:
+
+- idle, short press and release: start the pipeline
+- idle, hold for `cancel_hold_seconds` or longer: do nothing
+- busy, short press and release: ignore the press
+- busy, hold for `cancel_hold_seconds`: cancel the running pipeline
+
+The gesture is classified from the state at the initial button press. A press that begins while idle can only start or be ignored; it cannot start and then cancel the same job. Starting occurs on button release, which also prevents an intended long cancellation gesture from briefly starting another action.
+
+The default `button_bounce_time` is `0.05` seconds so brief intentional presses are accepted. Increase it only if the physical switch produces duplicate events.
+
+Cancellation first sends an interrupt to the pipeline and waits up to `cancel_timeout_seconds`. If the process does not exit, the runner terminates it. During printer streaming, interruption sends Marlin `M410`, then a relative 5 mm Z lift, and restores absolute positioning. After cancellation the listener returns to ready and accepts a new short press.
 
 ## systemd Service
 

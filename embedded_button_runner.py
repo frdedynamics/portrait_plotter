@@ -1,5 +1,7 @@
 import argparse
 import json
+import os
+import signal
 import subprocess
 import sys
 import threading
@@ -15,7 +17,9 @@ EVENT_PREFIX = "PORTRAIT_PLOTTER_EVENT "
 DEFAULT_CONFIG = {
     "button_pin": 17,
     "button_pull_up": True,
-    "button_bounce_time": 0.2,
+    "button_bounce_time": 0.05,
+    "cancel_hold_seconds": 2.0,
+    "cancel_timeout_seconds": 5.0,
     "status_led_pin": None,
     "status_led_brightness": 0.35,
     "status_led_idle_mode": "heartbeat",
@@ -63,13 +67,27 @@ def validate_config(config):
         raise RuntimeError(
             "status_led_idle_mode must be either 'heartbeat' or 'dim_wink'."
         )
+    for name in ("cancel_hold_seconds", "cancel_timeout_seconds"):
+        try:
+            value = float(config.get(name))
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(f"{name} must be a positive number.") from exc
+        if value <= 0:
+            raise RuntimeError(f"{name} must be a positive number.")
 
 
 class ButtonPipelineRunner:
     def __init__(self, config):
         self.config = config
         self.lock = threading.Lock()
+        self.state_lock = threading.Lock()
         self.busy = False
+        self.active_process = None
+        self.cancel_requested = threading.Event()
+        self.press_started = None
+        self.press_was_busy = False
+        self.long_press_handled = False
+        self.hold_timer = None
         self.status_led = StatusLed(
             config.get("status_led_pin"),
             brightness=config.get("status_led_brightness", 0.35),
@@ -85,7 +103,9 @@ class ButtonPipelineRunner:
             self.status_led.running()
             return
 
-        self.busy = True
+        with self.state_lock:
+            self.busy = True
+        self.cancel_requested.clear()
         try:
             countdown_seconds = float(self.config.get("capture_countdown_seconds", 0))
             self.status_led.running()
@@ -100,20 +120,35 @@ class ButtonPipelineRunner:
             ]
             print("Running:")
             print(" ".join(command))
+            popen_kwargs = {
+                "cwd": Path(__file__).parent,
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.STDOUT,
+                "text": True,
+                "bufsize": 1,
+            }
+            if os.name == "nt":
+                popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            else:
+                popen_kwargs["start_new_session"] = True
+
             process = subprocess.Popen(
                 command,
-                cwd=Path(__file__).parent,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
+                **popen_kwargs,
             )
+            with self.state_lock:
+                self.active_process = process
+
             for line in process.stdout:
                 line = line.rstrip()
                 if not self._handle_pipeline_event(line, button_time):
                     print(line)
 
             return_code = process.wait()
+            if self.cancel_requested.is_set():
+                print("Pipeline cancelled.")
+                self.status_led.cancelled()
+                return
             if return_code:
                 raise subprocess.CalledProcessError(return_code, command)
 
@@ -124,8 +159,11 @@ class ButtonPipelineRunner:
             print(f"Pipeline failed with exit code {exc.returncode}.", file=sys.stderr)
             self.status_led.error()
         finally:
+            with self.state_lock:
+                self.active_process = None
+                self.busy = False
             self.status_led.ready()
-            self.busy = False
+            self.cancel_requested.clear()
             self.lock.release()
 
     def _handle_pipeline_event(self, line, button_time):
@@ -162,6 +200,99 @@ class ButtonPipelineRunner:
         thread = threading.Thread(target=self.run_pipeline, daemon=True)
         thread.start()
 
+    def button_pressed(self):
+        with self.state_lock:
+            self.press_started = time.monotonic()
+            self.press_was_busy = self.busy
+            self.long_press_handled = False
+
+            if self.press_was_busy:
+                hold_seconds = float(self.config.get("cancel_hold_seconds", 2.0))
+                self.hold_timer = threading.Timer(
+                    hold_seconds,
+                    self._handle_busy_long_press,
+                )
+                self.hold_timer.daemon = True
+                self.hold_timer.start()
+
+    def button_released(self):
+        with self.state_lock:
+            if self.press_started is None:
+                return
+
+            duration = time.monotonic() - self.press_started
+            press_was_busy = self.press_was_busy
+            long_press_handled = self.long_press_handled
+            hold_timer = self.hold_timer
+            self.press_started = None
+            self.press_was_busy = False
+            self.long_press_handled = False
+            self.hold_timer = None
+
+        if hold_timer:
+            hold_timer.cancel()
+
+        hold_seconds = float(self.config.get("cancel_hold_seconds", 2.0))
+        if long_press_handled:
+            return
+        if press_was_busy:
+            print("Short press ignored while pipeline is running.")
+            self.status_led.busy_press()
+            self.status_led.running()
+        elif duration < hold_seconds:
+            self.run_pipeline_background()
+        else:
+            print("Long press ignored while idle; use a short press to start.")
+            self.status_led.busy_press()
+            self.status_led.ready()
+
+    def _handle_busy_long_press(self):
+        with self.state_lock:
+            if (
+                self.press_started is None
+                or not self.press_was_busy
+                or self.long_press_handled
+            ):
+                return
+            self.long_press_handled = True
+
+        self.cancel_pipeline()
+
+    def cancel_pipeline(self):
+        with self.state_lock:
+            process = self.active_process
+
+        if process is None or process.poll() is not None:
+            print("Pipeline finished before cancellation was requested.")
+            return
+
+        print("Cancelling pipeline...")
+        self.cancel_requested.set()
+        try:
+            self._interrupt_process(process)
+        except OSError as exc:
+            print(f"Could not interrupt pipeline cleanly: {exc}")
+        self.status_led.cancelling()
+
+        timeout = float(self.config.get("cancel_timeout_seconds", 5.0))
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            print("Pipeline did not stop after interrupt; terminating it.")
+            process.terminate()
+            try:
+                process.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                print("Pipeline did not terminate; killing it.")
+                process.kill()
+
+    @staticmethod
+    def _interrupt_process(process):
+        if os.name == "nt":
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
+            os.killpg(process.pid, signal.SIGINT)
+
 
 def run_button_loop(config):
     try:
@@ -174,11 +305,15 @@ def run_button_loop(config):
     button = Button(
         config["button_pin"],
         pull_up=config.get("button_pull_up", True),
-        bounce_time=config.get("button_bounce_time", 0.2),
+        bounce_time=config.get("button_bounce_time", 0.05),
     )
-    button.when_pressed = runner.run_pipeline_background
+    button.when_pressed = runner.button_pressed
+    button.when_released = runner.button_released
 
-    print(f"Waiting for button on GPIO{config['button_pin']}...")
+    print(
+        f"Waiting for button on GPIO{config['button_pin']} "
+        f"(hold {config['cancel_hold_seconds']}s while busy to cancel)..."
+    )
     pause()
 
 
