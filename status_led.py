@@ -139,7 +139,7 @@ class StatusLed:
 
     def _ready_dim_wink(self, stop_event):
         while not stop_event.is_set():
-            self._set(0.12)
+            self._set(0.25)
             if stop_event.wait(2.5):
                 break
             self._set(1.0)
