@@ -224,6 +224,7 @@ Edit:
 - `style_reference.png`
 - `width-mm` / `height-mm`
 - `serial-port`
+- optional signature placement arguments inside `pipeline_args`
 - optional `status_led_pin`
 - `status_led_brightness`
 - `status_led_idle_mode`
@@ -252,6 +253,19 @@ Example key part:
   ]
 }
 ```
+
+To enable the HVLRobotics signature, add these entries inside `pipeline_args`:
+
+```json
+"--signature",
+"--signature-width", "28",
+"--signature-margin", "4",
+"--signature-gap", "2",
+"--signature-position", "bottom-right",
+"--signature-angle", "6"
+```
+
+The placement code searches the preferred lower corner for a collision-free position without moving or scaling the portrait. The precomputed signature geometry is embedded in `signature.py`; no separate signature image is needed on the Raspberry Pi.
 
 ## Test Without Button
 

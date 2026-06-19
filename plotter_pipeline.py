@@ -224,6 +224,12 @@ def run_pipeline(args):
         optimize_order=not args.no_optimize_order,
         present_x=None if args.no_present else args.present_x,
         present_y=None if args.no_present else args.present_y,
+        signature=args.signature,
+        signature_width=args.signature_width,
+        signature_margin=args.signature_margin,
+        signature_gap=args.signature_gap,
+        signature_position=args.signature_position,
+        signature_angle=args.signature_angle,
     )
 
     if args.send_to_printer:
@@ -301,6 +307,12 @@ def build_parser():
     parser.add_argument("--present-x", type=float, default=0.0, help="Final X position after lifting pen")
     parser.add_argument("--present-y", type=float, default=220.0, help="Final Y position after lifting pen")
     parser.add_argument("--no-present", action="store_true", help="Do not move XY after the final pen lift")
+    parser.add_argument("--signature", action="store_true", help="Add an HVLRobotics signature near the portrait")
+    parser.add_argument("--signature-width", type=float, default=28.0, help="Signature width in millimeters")
+    parser.add_argument("--signature-margin", type=float, default=4.0, help="Minimum signature margin from the paper edge in millimeters")
+    parser.add_argument("--signature-gap", type=float, default=2.0, help="Clear space between signature and portrait in millimeters")
+    parser.add_argument("--signature-position", choices=["bottom-left", "bottom-right"], default="bottom-right", help="Preferred lower corner for automatic signature placement")
+    parser.add_argument("--signature-angle", type=float, default=6.0, help="Signature rotation in degrees; positive angles rise to the right")
 
     parser.add_argument("--send-to-printer", action="store_true", help="Stream generated G-code to a serial printer")
     parser.add_argument("--serial-port", default=None, help="Serial port, e.g. COM3 or /dev/ttyUSB0")

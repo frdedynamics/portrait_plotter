@@ -1,0 +1,13 @@
+import base64
+import json
+import zlib
+
+
+_SIGNATURE_DATA = (
+    "c-nng*>Nl=3`}V1755Q~%lW6VQtJZN_Lrx6U;rJhmi+bgmHwrgXI`K5FQ>Xk|Nb!6R_lzVJyKPyw^4>*I}gD|9<u@Kxi`U9S$P9%Wmd)N1XAlRKyuD&w-+mOc3`FFELg8Kz3Y0*tKTQ&kxQ))Hd|}^zHy$DehJv_eSZ^3XelM(ZET7pD@#s&^2*$M8oGPW+W958sh+ZWD&;+;%Vow$bL$1^OJH@b)fFRKVJjcsbSuA}F`WNABu#RSVssa{15VJZ@Z+&JH+4rzX|0Si%1%?Cw(G)O$je#oQW|}ab#t|>dueBaS;+Ldx6&`ene6!_PO9v#k3L&XI?O7xDv1eT3>>@GUh}~sg2reRlfc%POR=7}L@D`7%rfxPjIq;-VzjcrLu9M|Vx_66#$xm0X&m-~A=p0_bovma2VRE{`ruj{Zj*D$RWW`6ZaCYL7uQOj6O1xSPN9u!?+4?z<AxkDOEHc7jC6P~1fXIZMPh~B^e(IKgxDQ*O?BMf8F?v@1B@Iv2hJq}=BXIR)5ii^F^X+jM-CA$QIMoPUrgvAuTnMcV_BqD<B)_&+2D2reZpS)Q|gP6UDO1gf=mMX+C|(1Uy@nWdb5m$Wn==i({2-oG8-wxM}^D8;bghA#PF##Idy{@Z>McU;_dJSR(Ub@?!9*zAv)15q#ZE3@uC+<4y{p}Sa>-LBY*{Kvrqio+!Tb0c{&FM=6Uv3CeDvg^n(PGuGUhQr}kN<8Y=N3;dgUXLZAp{r2$sfvchzO!{`}W8k{}JV*7zmd^8Qs?};K>lei+xfR(;A<-9l$qt>EnIQqa{O7E6RoHux;b3!#IUy#JYxigm0oizl(1JCUoBjc5QvnNH?u1yJnAo2X9)KqL{VOjbKO~M019En}LXy(lXpoNroArINmT7oH-4sv@i<{!n37#jz|i&@Sk=TzAC#o9``l}>0<F*yxXHIQSG5TH@TjNgOH56pvw()!`fM2<<1sT?~hNMb9usMDJ4qwGDNWDktJuNcSi&Cnad;K733{WhDc_mfc@lzQu$?O{sgap>=%j7iQ?(N^N&t0K24@0C7~Q6F=HVy46n4!DR%L&!AILDAV<84T^RE8{(a@#UpB^5q4y;;0f!u-w<U1?7Pqm)YQOXeU+%Y8cB^;z2E4+tQpBQCCP4B+*}0Y}@4&j3F3`-N~z2xa<s!<#me)S6{ZsrFq=BvAjmnclz1|?m>X_34-0KahiNPmQ1GS9_!>H4Lk;J<xf%=!FLdPe4`g@TVuX~jczh*UK#34N(8Nqfrvk7sd*0&GQbN>CtaaObY>gTx~ijE=Qjajf_borSw5@oTXME25&Y@7ag@sgbJgvyJ#w$%k&&b7T#kkIILPdLcqyEFVz+a(79x~BRtj%=O_cSj5~a+2tnE^av*<1q*^A8J%A>T-0`Jz(ft^Xz8>{}0H7r=^(lO*(KxF=`kfz_E2)irW6JrN}Ge%LLbW3O<6v05}&pH=QPE}24DO250qcqk}NGq#W4ZXrGx?41$UONxW>9$3i;dI*&#1Hm_mGv@OcFtx790Lqp&()Bm#ll)Kvgo=A+?$Wkdc$}*Iv!*1tK(6Tcw&~iksL=;1yQ9<u9pK+P1c~8D}I+ezi%!mD^F`_8sKPY1Ecs*iY#t|qgC~MiPpDxzHnL5R@M46bT3&k_WyGi6XWtYrBm*V@|{G1NhJKW(&TrP*@N0l@;4SPCD=}Wa5697@ix&|-*s_9Jv|us=PqLt-RvEKGruG|U2&eP42#CXcE(!`iMX29=Z99B(e*m#PUnyl^GA82z7PG~N@)L{yZG$nz`!wg=Fe4SvJ)ADB+9pnoH5yPO*+Ykb-netn_NGd+>Y80jEe92Yo%*OSt;1+Ph;NEw|{K(qnJrDD#PoBFauDCzZEWB+jg3Gt!xd!K(+T!q_cv^clX-85Ct_gFLnpRM*n(X#)r;x&9wi~gSz-QWPo!xDDTNq^aU@*8{WOHAe*x=G>5*zB(qn)=8O^AsN2|%+hQ|Q&i5qG3vS}kRk^J$lT*Q<ux};XjRGRIJ71%}m^Hv*xxga1yUlqH5*Ud&>M2$xa7CuPSWM_J2fFEK*u3<_T=hpCa&35GK1TL9d53_SK0aiFhQCaoC$|JYDv{qeH*aHu3*NAOsXx?L$OX3WOa1up2x5GAwKNw7Q=u_wajIKfw8lLK!owc!=K<~`v8Ru=Bkm_PWg@YC&^vun9&dx?`W==B<|#OhTn-^LZPIoY6CYSdCmY!BgspNb@wn;M_7)*W=^0ro#ZhL4+v*TffgREH(;?jm{|NuS>CNMANV;1;G+k#cRKiQz7MNx|TGAL!{5l2uV>6QaW4~hKnJw3bdR2^XdymGFjq?-QA2WnaXb$=v)Bb^Rhz6I6r)cp1;#joaszH1D9|s^l^|Gxo6G4&i`?-KVM71;rdSy-dAkD)oZRYlprhD)3RC7IlG?~#!9N67S{IT0Ed77emEAdmid_4Qdh1wd+f0h16bVnnm$}mS&2$qDP`2PM6R_p$>"
+)
+
+
+def normalized_hvlrobotics_signature_paths():
+    compressed = base64.b85decode(_SIGNATURE_DATA.encode("ascii"))
+    return json.loads(zlib.decompress(compressed))
